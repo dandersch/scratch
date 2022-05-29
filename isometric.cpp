@@ -32,32 +32,33 @@ point apply_inverse(point p) // remove shear
     return sheared_p;
 };
 
+#define SCREEN_WIDTH  720
+#define SCREEN_HEIGHT 576
+
 int main(int argc, char** argv)
 {
-    // init sdl
     SDL_Init(SDL_INIT_EVERYTHING);
-
-    // open window, init renderer
     SDL_Window*   window;
     SDL_Renderer* renderer;
-    SDL_CreateWindowAndRenderer(720, 576, 0, &window, &renderer); // 720x576
+    SDL_CreateWindowAndRenderer(SCREEN_WIDTH, SCREEN_HEIGHT, 0, &window, &renderer);
 
     // set up points to draw lines. 720/12 = 60, i.e. every 60 pixels two new
     // points: one point up (0), one point down (576)
-    line vert_lines[(720/60) + 1]; // TODO hardcoded
-    line hori_lines[(576/48) + 1]; // TODO hardcoded
-    for(int i = 0; i < 12; i++)
+    line vert_lines[(SCREEN_WIDTH/60)  + 1]; // TODO hardcoded
+    line hori_lines[(SCREEN_HEIGHT/48) + 1]; // TODO hardcoded
+    for(int i = 0; i < 12; i++)              // TODO hardcoded
     {
         point p1 = {i * 60, 0};
-        point p2 = {i * 60, 576};
+        point p2 = {i * 60, SCREEN_HEIGHT};
         vert_lines[i] = {p1, p2};
 
         p1 = {0,   i * 48};
-        p2 = {720, i * 48};
+        p2 = {SCREEN_WIDTH, i * 48};
         hori_lines[i] = {p1, p2};
     }
-    vert_lines[12] = {{719,   0}, {719, 576}}; // TODO hardcoded
-    hori_lines[12] = {{0,   575}, {720, 575}}; // TODO hardcoded
+    // -1px to be visible on screen
+    vert_lines[12] = {{SCREEN_WIDTH-1,               0}, {SCREEN_WIDTH-1,   SCREEN_HEIGHT}};
+    hori_lines[12] = {{             0, SCREEN_HEIGHT-1}, {  SCREEN_WIDTH, SCREEN_HEIGHT-1}};
 
     point mouse_pos = {0,0};
 
@@ -96,6 +97,8 @@ int main(int argc, char** argv)
             point grid_mouse = apply_inverse(mouse_pos);
 
             // find out between which lines the mouse is (NOTE "bruteforce" version for now)
+            // TODO just clamp the mouse_pos to the nearest line, then index
+            //      into the lines array directly by dividiing by 60/48
             for(int i = 0; i < 12; i++)
             {
                 // TODO apply the inverse of the shear transform to the mouse before
@@ -109,6 +112,25 @@ int main(int argc, char** argv)
                     highlight_hori_line = &hori_lines[i];
                 }
             }
+
+            // do a lerp for some nice looking animation
+            float time_to_lerp       = 5000.f; // TODO use a timestep in the future
+            static float timer       = 0;
+            static bool  lerp_to_max = true;
+            timer += 2.f;
+            float interpolant = timer/time_to_lerp;
+            float min = -0.5f; float max =  0.5f;
+            if (lerp_to_max) {
+                               shear_x = min + interpolant * (max - min);
+                               shear_y = min + interpolant * (max - min);
+                             }
+            else             {
+                               shear_x = max + interpolant * (min - max);
+                               shear_y = max + interpolant * (min - max);
+                             }
+
+            if (shear_x >= max) { lerp_to_max = false; timer = 0; }
+            if (shear_x <= min) { lerp_to_max = true;  timer = 0; }
         }
 
         {/* render loop */

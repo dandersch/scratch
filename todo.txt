@@ -1,0 +1,17 @@
+TODO -*- mode: org -*-
+
+1. [X] find out best way to draw a line
+2. [X] draw vertical lines on the screen, adressable from left to right with 0..n
+3. [X] draw horizontal lines, adressable from up to down with 0..m
+4. [X] adjustable spacing between the line (share the spacing with vert. lines)
+5. [X] Now that we have a grid: make boxes inside addressable by n,m
+6. [X] color the box where the mouse is
+7. [X] find out how to draw lines diagonally
+8. [X] add shearing
+9. [ ] adjustable spacing between the lines
+10. [ ] "infinite" lines
+11. [ ] movable camera
+12. [X] Add interpolation
+13. [ ] *perspective projection*
+14. [ ] draw a block between the lines where the mouse is (needs rewrite in ogl)
+15. [ ] textured polygons
