@@ -13,5 +13,5 @@ TODO -*- mode: org -*-
 11. [ ] movable camera
 12. [X] Add interpolation
 13. [ ] *perspective projection*
-14. [ ] draw a block between the lines where the mouse is (needs rewrite in ogl)
+14. [X] draw a block between the lines where the mouse is (+needs rewrite in ogl+)
 15. [ ] textured polygons

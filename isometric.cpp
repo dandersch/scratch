@@ -41,6 +41,9 @@ int main(int argc, char** argv)
     SDL_Window*   window;
     SDL_Renderer* renderer;
     SDL_CreateWindowAndRenderer(SCREEN_WIDTH, SCREEN_HEIGHT, 0, &window, &renderer);
+    //SDL_version vers;
+    //SDL_GetVersion(&vers);
+    //printf("%u.%u.%u\n", vers.major, vers.minor, vers.patch); // 2.0.22
 
     // set up points to draw lines. 720/12 = 60, i.e. every 60 pixels two new
     // points: one point up (0), one point down (576)
@@ -88,7 +91,7 @@ int main(int argc, char** argv)
                     mouse_pos.y = event.motion.y;
                 }
             }
-        }
+        } /* end event */
 
         // TODO probably better to not use pointers
         line* highlight_vert_line = NULL;
@@ -114,6 +117,7 @@ int main(int argc, char** argv)
             }
 
             // do a lerp for some nice looking animation
+            #if 1
             float time_to_lerp       = 5000.f; // TODO use a timestep in the future
             static float timer       = 0;
             static bool  lerp_to_max = true;
@@ -131,9 +135,10 @@ int main(int argc, char** argv)
 
             if (shear_x >= max) { lerp_to_max = false; timer = 0; }
             if (shear_x <= min) { lerp_to_max = true;  timer = 0; }
-        }
+            #endif
+        } /* end update */
 
-        {/* render loop */
+        { /* render loop */
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
             SDL_RenderClear(renderer);
 
@@ -166,17 +171,35 @@ int main(int argc, char** argv)
                                              apply_transform(hori_lines[i].p2).y);
             }
 
-            // TODO hardcoded
             if (highlight_vert_line && highlight_hori_line)
             {
-                SDL_Rect highlight_box = { highlight_vert_line->p1.x,
-                                           highlight_hori_line->p1.y,
-                                           60, 48 };
-                // TODO use a FillPolygon version...
-                // SDL_RenderFillRect(renderer, &highlight_box);
+                // TODO maybe just use SDL_FPoint everywhere instead of our own
+                point top_L_point = apply_transform({highlight_vert_line->p1.x     , highlight_hori_line->p1.y     });
+                point btm_L_point = apply_transform({highlight_vert_line->p1.x     , highlight_hori_line->p1.y + 48});
+                point btm_R_point = apply_transform({highlight_vert_line->p1.x + 60, highlight_hori_line->p1.y + 48});
+                point top_R_point = apply_transform({highlight_vert_line->p1.x + 60, highlight_hori_line->p1.y     });
+
+                SDL_Color  red     = {255,0,0,SDL_ALPHA_OPAQUE};
+                SDL_Color  green   = {0,255,0,SDL_ALPHA_OPAQUE};
+                SDL_Color  blue    = {0,0,255,SDL_ALPHA_OPAQUE};
+                SDL_Color  yellow  = {250,250,0,SDL_ALPHA_OPAQUE};
+                SDL_FPoint uv      = {0,0}; // unused
+                SDL_FPoint top_L   = {(float) top_L_point.x, (float) top_L_point.y};
+                SDL_FPoint btm_L   = {(float) btm_L_point.x, (float) btm_L_point.y};
+                SDL_FPoint btm_R   = {(float) btm_R_point.x, (float) btm_R_point.y};
+                SDL_FPoint top_R   = {(float) top_R_point.x, (float) top_R_point.y};
+                SDL_Vertex verts[8] = {
+                                        {top_L,red,uv}, // first triangle
+                                        {btm_L,green,uv},
+                                        {btm_R,blue,uv},
+                                        {top_R,yellow,uv}, // second triangle
+                                        {top_L,red,uv},
+                                        {btm_R,blue,uv},
+                                      };
+                SDL_RenderGeometry(renderer, NULL, verts, 6, NULL, 0);
             }
 
             SDL_RenderPresent(renderer);
-        }
+        } /* end render */
     }
 }
