@@ -9,10 +9,10 @@ TODO -*- mode: org -*-
 7. [X] find out how to draw lines diagonally
 8. [X] add shearing
 9. [ ] use SDL_GetError()...
-10. [ ] adjustable spacing between the lines
+10. [X] adjustable spacing between the lines
 11. [ ] add some anti-aliasing
-12. [ ] "infinite" lines
-13. [ ] movable camera
+12. [ ] movable camera
+13. [ ] "infinite" lines
 14. [X] Add interpolation
 15. [ ] *perspective projection*
 16. [X] draw a block between the lines where the mouse is (+needs rewrite in ogl+)

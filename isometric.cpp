@@ -23,17 +23,21 @@ point apply_transform(point p) // apply a shear transform
 
 point apply_inverse(point p) // remove shear
 {
-    point sheared_p = {0,0}; // TODO rename
-    float inverse[9] = {(1.f / (1.f - (shear_x * shear_y))), shear_x/(shear_x*shear_y - 1.f), 0,
-                        shear_y/(shear_x*shear_y - 1.f),     1.f/(1.f - shear_x*shear_y),     0,
-                                0,       0, 1};
-    sheared_p.x = p.x * inverse[0] + p.y * inverse[1] + 0 * inverse[2];
-    sheared_p.y = p.x * inverse[3] + p.y * inverse[4] + 0 * inverse[5];
-    return sheared_p;
+    point unsheared_p = {0,0};
+    float inverse[9]  = {(1.f / (1.f - (shear_x * shear_y))), shear_x/(shear_x*shear_y - 1.f),  0,
+                             shear_y/(shear_x*shear_y - 1.f),     1.f/(1.f - shear_x*shear_y),  0,
+                                                           0,                               0,  1};
+    unsheared_p.x = p.x * inverse[0] + p.y * inverse[1] + 0 * inverse[2];
+    unsheared_p.y = p.x * inverse[3] + p.y * inverse[4] + 0 * inverse[5];
+    return unsheared_p;
 };
 
-#define SCREEN_WIDTH  720
-#define SCREEN_HEIGHT 576
+#define SCREEN_WIDTH        1200
+#define SCREEN_HEIGHT       720
+#define SPACING_X_AXIS      60
+#define SPACING_Y_AXIS      24
+#define VERTICAL_LINE_CNT   SCREEN_WIDTH/SPACING_X_AXIS
+#define HORIZONTAL_LINE_CNT SCREEN_HEIGHT/SPACING_Y_AXIS
 
 int main(int argc, char** argv)
 {
@@ -49,23 +53,25 @@ int main(int argc, char** argv)
     SDL_Surface* bitmap  = SDL_LoadBMP("stone.bmp");
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, bitmap);
 
-    // set up points to draw lines. 720/12 = 60, i.e. every 60 pixels two new
-    // points: one point up (0), one point down (576)
-    line vert_lines[(SCREEN_WIDTH/60)  + 1]; // TODO hardcoded
-    line hori_lines[(SCREEN_HEIGHT/48) + 1]; // TODO hardcoded
-    for(int i = 0; i < 12; i++)              // TODO hardcoded
+    // set up points to draw lines.
+    line vert_lines[VERTICAL_LINE_CNT   + 1];  // +1 because we set
+    line hori_lines[HORIZONTAL_LINE_CNT + 1];  // another one manually
+    for(int i = 0; i < VERTICAL_LINE_CNT; i++)
     {
-        point p1 = {i * 60, 0};
-        point p2 = {i * 60, SCREEN_HEIGHT};
+        point p1 = {i * SPACING_X_AXIS,             0};
+        point p2 = {i * SPACING_X_AXIS, SCREEN_HEIGHT};
         vert_lines[i] = {p1, p2};
-
-        p1 = {0,   i * 48};
-        p2 = {SCREEN_WIDTH, i * 48};
+    }
+    for(int i = 0; i < HORIZONTAL_LINE_CNT; i++)
+    {
+        point p1 = {           0, i * SPACING_Y_AXIS};
+        point p2 = {SCREEN_WIDTH, i * SPACING_Y_AXIS};
         hori_lines[i] = {p1, p2};
     }
+
     // -1px to be visible on screen
-    vert_lines[12] = {{SCREEN_WIDTH-1,               0}, {SCREEN_WIDTH-1,   SCREEN_HEIGHT}};
-    hori_lines[12] = {{             0, SCREEN_HEIGHT-1}, {  SCREEN_WIDTH, SCREEN_HEIGHT-1}};
+    vert_lines[VERTICAL_LINE_CNT]   = {{SCREEN_WIDTH-1,               0}, {SCREEN_WIDTH-1,   SCREEN_HEIGHT}};
+    hori_lines[HORIZONTAL_LINE_CNT] = {{             0, SCREEN_HEIGHT-1}, {  SCREEN_WIDTH, SCREEN_HEIGHT-1}};
 
     point mouse_pos = {0,0};
 
@@ -104,10 +110,14 @@ int main(int argc, char** argv)
 
             // find out between which lines the mouse is
             point grid_mouse = apply_inverse(mouse_pos);
-            int vert_idx = (grid_mouse.x - (grid_mouse.x % 60)) / 60;
-            int hori_idx = (grid_mouse.y - (grid_mouse.y % 48)) / 48;
-            if (vert_idx >= 0 && vert_idx < 12) { highlight_vert_line = &vert_lines[vert_idx]; }
-            if (hori_idx >= 0 && hori_idx < 12) { highlight_hori_line = &hori_lines[hori_idx]; }
+            int vert_idx = (grid_mouse.x - (grid_mouse.x % SPACING_X_AXIS)) / SPACING_X_AXIS;
+            int hori_idx = (grid_mouse.y - (grid_mouse.y % SPACING_Y_AXIS)) / SPACING_Y_AXIS;
+            if (vert_idx >= 0 && vert_idx < VERTICAL_LINE_CNT) {
+                highlight_vert_line = &vert_lines[vert_idx];
+            }
+            if (hori_idx >= 0 && hori_idx < HORIZONTAL_LINE_CNT) {
+                highlight_hori_line = &hori_lines[hori_idx];
+            }
 
             // do a lerp for some nice looking animation
             #if 1
@@ -137,10 +147,10 @@ int main(int argc, char** argv)
 
 
             SDL_SetRenderDrawColor(renderer, 255, 0, 0, SDL_ALPHA_OPAQUE);
-            for(int i = 0; i < 13; i++)
+            for(int i = 0; i < (VERTICAL_LINE_CNT+1); i++)
             {
                 if (highlight_vert_line == &vert_lines[i] ||
-                    highlight_vert_line == &vert_lines[i-1]) // TODO why does this not go OOB...?
+                    highlight_vert_line == &vert_lines[i-1]) // TODO is this too much voodoo?
                 {
                     SDL_SetRenderDrawColor(renderer, 0, 255, 0, SDL_ALPHA_OPAQUE);
                 }
@@ -151,8 +161,11 @@ int main(int argc, char** argv)
                                              apply_transform(vert_lines[i].p1).y,
                                              apply_transform(vert_lines[i].p2).x,
                                              apply_transform(vert_lines[i].p2).y);
+            }
+            for(int i = 0; i < (HORIZONTAL_LINE_CNT+1); i++)
+            {
                 if (highlight_hori_line == &hori_lines[i] ||
-                    highlight_hori_line == &hori_lines[i-1])
+                    highlight_hori_line == &hori_lines[i-1]) // TODO is this too much voodoo?
                 {
                     SDL_SetRenderDrawColor(renderer, 0, 255, 0, SDL_ALPHA_OPAQUE);
                 }
@@ -168,28 +181,32 @@ int main(int argc, char** argv)
             {
                 // TODO maybe just use SDL_FPoint everywhere instead of our own
                 // TODO I believe we are off by one px somewhere...
-                point top_L_point = apply_transform({highlight_vert_line->p1.x     , highlight_hori_line->p1.y     });
-                point btm_L_point = apply_transform({highlight_vert_line->p1.x     , highlight_hori_line->p1.y + 48});
-                point btm_R_point = apply_transform({highlight_vert_line->p1.x + 60, highlight_hori_line->p1.y + 48});
-                point top_R_point = apply_transform({highlight_vert_line->p1.x + 60, highlight_hori_line->p1.y     });
+                point top_L_point = apply_transform({highlight_vert_line->p1.x,
+                                                     highlight_hori_line->p1.y});
+                point btm_L_point = apply_transform({highlight_vert_line->p1.x,
+                                                     highlight_hori_line->p1.y + SPACING_Y_AXIS});
+                point btm_R_point = apply_transform({highlight_vert_line->p1.x + SPACING_X_AXIS,
+                                                     highlight_hori_line->p1.y + SPACING_Y_AXIS});
+                point top_R_point = apply_transform({highlight_vert_line->p1.x + SPACING_X_AXIS,
+                                                     highlight_hori_line->p1.y});
 
                 SDL_Color  red     = {255,0,0,SDL_ALPHA_OPAQUE};
                 SDL_Color  green   = {0,255,0,SDL_ALPHA_OPAQUE};
                 SDL_Color  blue    = {0,0,255,SDL_ALPHA_OPAQUE};
                 SDL_Color  yellow  = {250,250,0,SDL_ALPHA_OPAQUE};
                 SDL_Color  none    = {255,255,255,SDL_ALPHA_OPAQUE};
-                SDL_FPoint uv      = {0,0}; // unused
                 SDL_FPoint top_L   = {(float) top_L_point.x, (float) top_L_point.y};
                 SDL_FPoint btm_L   = {(float) btm_L_point.x, (float) btm_L_point.y};
                 SDL_FPoint btm_R   = {(float) btm_R_point.x, (float) btm_R_point.y};
                 SDL_FPoint top_R   = {(float) top_R_point.x, (float) top_R_point.y};
                 SDL_Vertex verts[8] = {
-                                        {top_L,none, {0,0}}, // first triangle
-                                        {btm_L,none, {0,1}},
-                                        {btm_R,none, {1,1}},
-                                        {top_R,none, {1,0}}, // second triangle
-                                        {top_L,none, {0,0}},
-                                        {btm_R,none, {1,1}},
+                                      /* vtx    col   uv   */
+                                        {top_L, none, {0,0}}, // first triangle
+                                        {btm_L, none, {0,1}},
+                                        {btm_R, none, {1,1}},
+                                        {top_R, none, {1,0}}, // second triangle
+                                        {top_L, none, {0,0}},
+                                        {btm_R, none, {1,1}},
                                       };
                 SDL_RenderGeometry(renderer, texture, verts, 6, NULL, 0);
             }
