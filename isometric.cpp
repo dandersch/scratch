@@ -45,6 +45,10 @@ int main(int argc, char** argv)
     //SDL_GetVersion(&vers);
     //printf("%u.%u.%u\n", vers.major, vers.minor, vers.patch); // 2.0.22
 
+    // load in a texture
+    SDL_Surface* bitmap  = SDL_LoadBMP("stone.bmp");
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, bitmap);
+
     // set up points to draw lines. 720/12 = 60, i.e. every 60 pixels two new
     // points: one point up (0), one point down (576)
     line vert_lines[(SCREEN_WIDTH/60)  + 1]; // TODO hardcoded
@@ -174,6 +178,7 @@ int main(int argc, char** argv)
             if (highlight_vert_line && highlight_hori_line)
             {
                 // TODO maybe just use SDL_FPoint everywhere instead of our own
+                // TODO I believe we are off by one px somewhere...
                 point top_L_point = apply_transform({highlight_vert_line->p1.x     , highlight_hori_line->p1.y     });
                 point btm_L_point = apply_transform({highlight_vert_line->p1.x     , highlight_hori_line->p1.y + 48});
                 point btm_R_point = apply_transform({highlight_vert_line->p1.x + 60, highlight_hori_line->p1.y + 48});
@@ -183,20 +188,21 @@ int main(int argc, char** argv)
                 SDL_Color  green   = {0,255,0,SDL_ALPHA_OPAQUE};
                 SDL_Color  blue    = {0,0,255,SDL_ALPHA_OPAQUE};
                 SDL_Color  yellow  = {250,250,0,SDL_ALPHA_OPAQUE};
+                SDL_Color  none    = {255,255,255,SDL_ALPHA_OPAQUE};
                 SDL_FPoint uv      = {0,0}; // unused
                 SDL_FPoint top_L   = {(float) top_L_point.x, (float) top_L_point.y};
                 SDL_FPoint btm_L   = {(float) btm_L_point.x, (float) btm_L_point.y};
                 SDL_FPoint btm_R   = {(float) btm_R_point.x, (float) btm_R_point.y};
                 SDL_FPoint top_R   = {(float) top_R_point.x, (float) top_R_point.y};
                 SDL_Vertex verts[8] = {
-                                        {top_L,red,uv}, // first triangle
-                                        {btm_L,green,uv},
-                                        {btm_R,blue,uv},
-                                        {top_R,yellow,uv}, // second triangle
-                                        {top_L,red,uv},
-                                        {btm_R,blue,uv},
+                                        {top_L,none, {0,0}}, // first triangle
+                                        {btm_L,none, {0,1}},
+                                        {btm_R,none, {1,1}},
+                                        {top_R,none, {1,0}}, // second triangle
+                                        {top_L,none, {0,0}},
+                                        {btm_R,none, {1,1}},
                                       };
-                SDL_RenderGeometry(renderer, NULL, verts, 6, NULL, 0);
+                SDL_RenderGeometry(renderer, texture, verts, 6, NULL, 0);
             }
 
             SDL_RenderPresent(renderer);
