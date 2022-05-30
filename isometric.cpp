@@ -101,24 +101,13 @@ int main(int argc, char** argv)
         line* highlight_vert_line = NULL;
         line* highlight_hori_line = NULL;
         { /* update loop */
+
+            // find out between which lines the mouse is
             point grid_mouse = apply_inverse(mouse_pos);
-
-            // find out between which lines the mouse is (NOTE "bruteforce" version for now)
-            // TODO just clamp the mouse_pos to the nearest line, then index
-            //      into the lines array directly by dividiing by 60/48
-            for(int i = 0; i < 12; i++)
-            {
-                // TODO apply the inverse of the shear transform to the mouse before
-
-                if (vert_lines[i].p1.x < grid_mouse.x && vert_lines[i+1].p1.x > grid_mouse.x)
-                {
-                    highlight_vert_line = &vert_lines[i];
-                }
-                if (hori_lines[i].p1.y < grid_mouse.y && hori_lines[i+1].p1.y > grid_mouse.y)
-                {
-                    highlight_hori_line = &hori_lines[i];
-                }
-            }
+            int vert_idx = (grid_mouse.x - (grid_mouse.x % 60)) / 60;
+            int hori_idx = (grid_mouse.y - (grid_mouse.y % 48)) / 48;
+            if (vert_idx >= 0 && vert_idx < 12) { highlight_vert_line = &vert_lines[vert_idx]; }
+            if (hori_idx >= 0 && hori_idx < 12) { highlight_hori_line = &hori_lines[hori_idx]; }
 
             // do a lerp for some nice looking animation
             #if 1
