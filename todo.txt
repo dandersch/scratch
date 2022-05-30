@@ -11,7 +11,7 @@ TODO -*- mode: org -*-
 9. [ ] use SDL_GetError()...
 10. [X] adjustable spacing between the lines
 11. [ ] add some anti-aliasing
-12. [ ] movable camera
+12. [X] movable camera
 13. [ ] "infinite" lines
 14. [X] Add interpolation
 15. [ ] *perspective projection*

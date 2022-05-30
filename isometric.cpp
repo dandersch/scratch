@@ -10,25 +10,30 @@ struct line  { point p1; point p2; };
 static float shear_x = 1;
 static float shear_y = 0;
 
+// NOTE for now camera w/h == screen w/h
+// TODO use a rect with a width & height
+static float camera_pos_x = 0;
+static float camera_pos_y = 0;
+
 point apply_transform(point p) // apply a shear transform
 {
     point sheared_p = {0,0};
-    float transform[9] = {      1, shear_x, 0,
-                          shear_y,       1, 0,
+    float transform[9] = {      1, shear_x, -camera_pos_x,
+                          shear_y,       1, -camera_pos_y,
                                 0,       0, 1};
-    sheared_p.x = p.x * transform[0] + p.y * transform[1] + 0 * transform[2];
-    sheared_p.y = p.x * transform[3] + p.y * transform[4] + 0 * transform[5];
+    sheared_p.x = p.x * transform[0] + p.y * transform[1] + 1 * transform[2];
+    sheared_p.y = p.x * transform[3] + p.y * transform[4] + 1 * transform[5];
     return sheared_p;
 };
 
 point apply_inverse(point p) // remove shear
 {
     point unsheared_p = {0,0};
-    float inverse[9]  = {(1.f / (1.f - (shear_x * shear_y))), shear_x/(shear_x*shear_y - 1.f),  0,
-                             shear_y/(shear_x*shear_y - 1.f),     1.f/(1.f - shear_x*shear_y),  0,
+    float inverse[9]  = {(1.f / (1.f - (shear_x * shear_y))), shear_x/(shear_x*shear_y - 1.f),  (-camera_pos_x-(-camera_pos_y*shear_x))/(shear_x*shear_y - 1),
+                             shear_y/(shear_x*shear_y - 1.f),     1.f/(1.f - shear_x*shear_y),  (-camera_pos_y-(shear_y*-camera_pos_x))/(shear_x*shear_y - 1),
                                                            0,                               0,  1};
-    unsheared_p.x = p.x * inverse[0] + p.y * inverse[1] + 0 * inverse[2];
-    unsheared_p.y = p.x * inverse[3] + p.y * inverse[4] + 0 * inverse[5];
+    unsheared_p.x = p.x * inverse[0] + p.y * inverse[1] + 1 * inverse[2];
+    unsheared_p.y = p.x * inverse[3] + p.y * inverse[4] + 1 * inverse[5];
     return unsheared_p;
 };
 
@@ -69,9 +74,8 @@ int main(int argc, char** argv)
         hori_lines[i] = {p1, p2};
     }
 
-    // -1px to be visible on screen
-    vert_lines[VERTICAL_LINE_CNT]   = {{SCREEN_WIDTH-1,               0}, {SCREEN_WIDTH-1,   SCREEN_HEIGHT}};
-    hori_lines[HORIZONTAL_LINE_CNT] = {{             0, SCREEN_HEIGHT-1}, {  SCREEN_WIDTH, SCREEN_HEIGHT-1}};
+    vert_lines[VERTICAL_LINE_CNT]   = {{SCREEN_WIDTH,             0}, {SCREEN_WIDTH, SCREEN_HEIGHT}};
+    hori_lines[HORIZONTAL_LINE_CNT] = {{           0, SCREEN_HEIGHT}, {SCREEN_WIDTH, SCREEN_HEIGHT}};
 
     point mouse_pos = {0,0};
 
@@ -91,8 +95,13 @@ int main(int argc, char** argv)
                 {
                     if (event.key.keysym.sym == SDLK_x) { shear_x -= 0.1f; printf("shear_x: %f\n", shear_x); }
                     if (event.key.keysym.sym == SDLK_c) { shear_x += 0.1f; printf("shear_x: %f\n", shear_x); }
-                    if (event.key.keysym.sym == SDLK_s) { shear_y -= 0.1f; printf("shear_x: %f\n", shear_y); }
-                    if (event.key.keysym.sym == SDLK_d) { shear_y += 0.1f; printf("shear_x: %f\n", shear_y); }
+                    if (event.key.keysym.sym == SDLK_s) { shear_y -= 0.1f; printf("shear_y: %f\n", shear_y); }
+                    if (event.key.keysym.sym == SDLK_d) { shear_y += 0.1f; printf("shear_y: %f\n", shear_y); }
+
+                    if (event.key.keysym.sym == SDLK_UP)    { camera_pos_y -= 3.0f; printf("cam_x: %f\n", camera_pos_x);}
+                    if (event.key.keysym.sym == SDLK_DOWN)  { camera_pos_y += 3.0f; printf("cam_x: %f\n", camera_pos_x);}
+                    if (event.key.keysym.sym == SDLK_LEFT)  { camera_pos_x -= 3.0f; printf("cam_y: %f\n", camera_pos_y);}
+                    if (event.key.keysym.sym == SDLK_RIGHT) { camera_pos_x += 3.0f; printf("cam_y: %f\n", camera_pos_y);}
                 }
 
                 if (event.type == SDL_MOUSEMOTION)
