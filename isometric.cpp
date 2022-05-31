@@ -153,6 +153,8 @@ int main(int argc, char** argv)
         // TODO probably better to not use pointers
         line* highlight_vert_line = NULL;
         line* highlight_hori_line = NULL;
+        float vert_line = 0; // TODO set to some float that we consider invalid;
+        float hori_line = 0; // TODO set to some float that we consider invalid
         float cam_min_x = 0;
         float cam_min_y = 0;
         float cam_max_x = 0;
@@ -198,9 +200,13 @@ int main(int argc, char** argv)
 
             // find out between which lines the mouse is
             SDL_FPoint grid_mouse = apply_inverse(mouse_pos);
-            float vert_line = ((int) grid_mouse.x - ((int) grid_mouse.x % SPACING_X_AXIS));
-            float hori_line = ((int) grid_mouse.y - ((int) grid_mouse.y % SPACING_Y_AXIS));
+            vert_line = (int) (grid_mouse.x - ((int) grid_mouse.x % SPACING_X_AXIS));
+            hori_line = (int) (grid_mouse.y - ((int) grid_mouse.y % SPACING_Y_AXIS));
+            if (grid_mouse.x < 0) { vert_line = (int) (grid_mouse.x - std::abs(((int) grid_mouse.x % SPACING_X_AXIS))); }
+            if (grid_mouse.y < 0) { hori_line = (int) (grid_mouse.y - std::abs(((int) grid_mouse.y % SPACING_Y_AXIS))); }
             //printf("mouse x: %f, y: %f\n", vert_line, hori_line);
+
+            printf("x: %i, y: %i\n", -60%40, 60%40);
 
             #if 0
             // find out between which lines the mouse is
@@ -216,7 +222,7 @@ int main(int argc, char** argv)
             #endif
 
             // do a lerp for some nice looking animation
-            #if 1
+            #if 0
             float time_to_lerp       = 5000.f; // TODO use a timestep in the future
             static float timer       = 0;
             static bool  lerp_to_max = true;
@@ -300,6 +306,33 @@ int main(int argc, char** argv)
                 SDL_FPoint top  = apply_transform(SDL_FPoint {cam_min_x, y_step}); // TODO change once we remove struct point
                 SDL_FPoint btm  = apply_transform(SDL_FPoint {cam_max_x, y_step});
                 SDL_RenderDrawLine(renderer, top.x, top.y, btm.x, btm.y);
+            }
+
+            // TODO find a way to "if (..)" here...
+            {
+                // TODO maybe just use SDL_FPoint everywhere instead of our own
+                // TODO I believe we are off by one px somewhere...
+                // TODO we are off by one vertical line when we shear on the x axis / off by one horizontal line when we shear on the y axis
+                SDL_FPoint top_L = apply_transform(SDL_FPoint{vert_line, hori_line});
+                SDL_FPoint btm_L = apply_transform(SDL_FPoint{vert_line, hori_line + SPACING_Y_AXIS});
+                SDL_FPoint btm_R = apply_transform(SDL_FPoint{vert_line + SPACING_X_AXIS, hori_line + SPACING_Y_AXIS});
+                SDL_FPoint top_R = apply_transform(SDL_FPoint{vert_line + SPACING_X_AXIS, hori_line});
+
+                SDL_Color  red     = {255,0,0,SDL_ALPHA_OPAQUE};
+                SDL_Color  green   = {0,255,0,SDL_ALPHA_OPAQUE};
+                SDL_Color  blue    = {0,0,255,SDL_ALPHA_OPAQUE};
+                SDL_Color  yellow  = {250,250,0,SDL_ALPHA_OPAQUE};
+                SDL_Color  none    = {255,255,255,SDL_ALPHA_OPAQUE};
+                SDL_Vertex verts[8] = {
+                                      /* vtx    col   uv   */
+                                        {top_L, none, {0,0}}, // first triangle
+                                        {btm_L, none, {0,1}},
+                                        {btm_R, none, {1,1}},
+                                        {top_R, none, {1,0}}, // second triangle
+                                        {top_L, none, {0,0}},
+                                        {btm_R, none, {1,1}},
+                                      };
+                SDL_RenderGeometry(renderer, texture, verts, 6, NULL, 0);
             }
 
             #if 0
