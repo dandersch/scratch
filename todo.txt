@@ -12,8 +12,9 @@ TODO -*- mode: org -*-
 10. [X] adjustable spacing between the lines
 11. [ ] add some anti-aliasing
 12. [X] movable camera
-13. [ ] "infinite" lines
-14. [X] Add interpolation
-15. [ ] *perspective projection*
-16. [X] draw a block between the lines where the mouse is (+needs rewrite in ogl+)
-17. [X] textured polygons
+13. [X] "infinite" lines
+14. [ ] bring selection back w/ infinite lines
+15. [X] Add interpolation
+16. [ ] *perspective projection*
+17. [X] draw a block between the lines where the mouse is (+needs rewrite in ogl+)
+18. [X] textured polygons
