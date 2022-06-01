@@ -6,7 +6,7 @@
 
 #include <algorithm> // for std::min/max TODO use own...
 
-static float shear_x = 1;
+static float shear_x = 0.6f; // NOTE: we get a dent in the unsheared grid when starting with >= 0.7f...
 static float shear_y = 0;
 
 // NOTE for now camera w/h == screen w/h
@@ -50,10 +50,8 @@ SDL_FPoint apply_inverse_no_translation(SDL_FPoint p) // remove shear
 #define SCREEN_HEIGHT       720
 #define CAMERA_WIDTH        SCREEN_WIDTH  // TODO use own width
 #define CAMERA_HEIGHT       SCREEN_HEIGHT // TODO use own height
-#define SPACING_X_AXIS      60
-#define SPACING_Y_AXIS      24
-#define VERTICAL_LINE_CNT   SCREEN_WIDTH/SPACING_X_AXIS
-#define HORIZONTAL_LINE_CNT SCREEN_HEIGHT/SPACING_Y_AXIS
+#define SPACING_X_AXIS      (60 * 1)
+#define SPACING_Y_AXIS      (24 * 1)
 
 int main(int argc, char** argv)
 {
@@ -85,15 +83,15 @@ int main(int argc, char** argv)
 
                 if (event.type == SDL_KEYDOWN)
                 {
-                    if (event.key.keysym.sym == SDLK_x) { shear_x -= 0.1f; printf("shear_x: %f\n", shear_x); }
-                    if (event.key.keysym.sym == SDLK_c) { shear_x += 0.1f; printf("shear_x: %f\n", shear_x); }
-                    if (event.key.keysym.sym == SDLK_s) { shear_y -= 0.1f; printf("shear_y: %f\n", shear_y); }
-                    if (event.key.keysym.sym == SDLK_d) { shear_y += 0.1f; printf("shear_y: %f\n", shear_y); }
+                    if (event.key.keysym.sym == SDLK_x) { shear_x -= 0.1f; /* printf("shear_x: %f\n", shear_x);*/ }
+                    if (event.key.keysym.sym == SDLK_c) { shear_x += 0.1f; /* printf("shear_x: %f\n", shear_x);*/ }
+                    if (event.key.keysym.sym == SDLK_s) { shear_y -= 0.1f; /* printf("shear_y: %f\n", shear_y);*/ }
+                    if (event.key.keysym.sym == SDLK_d) { shear_y += 0.1f; /* printf("shear_y: %f\n", shear_y);*/ }
 
-                    if (event.key.keysym.sym == SDLK_UP)    { camera_pos_y -= 3.0f; printf("cam_x: %f\n", camera_pos_x);}
-                    if (event.key.keysym.sym == SDLK_DOWN)  { camera_pos_y += 3.0f; printf("cam_x: %f\n", camera_pos_x);}
-                    if (event.key.keysym.sym == SDLK_LEFT)  { camera_pos_x -= 3.0f; printf("cam_y: %f\n", camera_pos_y);}
-                    if (event.key.keysym.sym == SDLK_RIGHT) { camera_pos_x += 3.0f; printf("cam_y: %f\n", camera_pos_y);}
+                    if (event.key.keysym.sym == SDLK_UP)    { camera_pos_y -= 3.0f; /*printf("cam_x: %f\n", camera_pos_x);*/}
+                    if (event.key.keysym.sym == SDLK_DOWN)  { camera_pos_y += 3.0f; /*printf("cam_x: %f\n", camera_pos_x);*/}
+                    if (event.key.keysym.sym == SDLK_LEFT)  { camera_pos_x -= 3.0f; /*printf("cam_y: %f\n", camera_pos_y);*/}
+                    if (event.key.keysym.sym == SDLK_RIGHT) { camera_pos_x += 3.0f; /*printf("cam_y: %f\n", camera_pos_y);*/}
                 }
 
                 if (event.type == SDL_MOUSEMOTION)
@@ -105,7 +103,7 @@ int main(int argc, char** argv)
         } /* end event */
 
         // TODO probably better to not use pointers
-        float vert_line = 0; // TODO set to some float that we consider invalid;
+        float vert_line = 0; // TODO set to some float that we consider invalid
         float hori_line = 0; // TODO set to some float that we consider invalid
         float cam_min_x = 0;
         float cam_min_y = 0;
@@ -133,11 +131,9 @@ int main(int argc, char** argv)
             cam_max_x = (int) cam_max_x + (SPACING_X_AXIS - (((int) (cam_max_x + CAMERA_WIDTH)) % SPACING_X_AXIS));
             cam_max_y = (int) cam_max_y + (SPACING_Y_AXIS - (((int) (cam_max_y + CAMERA_HEIGHT)) % SPACING_Y_AXIS));
 
-            // add one line more to the edges
+            // add one line more to the top and left edge
             cam_min_x -= SPACING_X_AXIS;
             cam_min_y -= SPACING_Y_AXIS;
-            cam_max_x += SPACING_X_AXIS;
-            cam_max_y += SPACING_Y_AXIS;
 
             // 5. use those for determining which lines to draw
             //printf("cam min x: %f, max x: %f, min y: %f, max y: %f\n", cam_min_x, cam_max_x, cam_min_y, cam_max_y);
@@ -178,45 +174,44 @@ int main(int argc, char** argv)
             SDL_RenderClear(renderer);
 
             SDL_SetRenderDrawColor(renderer, 255, 0, 0, SDL_ALPHA_OPAQUE); // TODO green for highlighted lines
-            // new way to draw the lines
-            // TODO infinite lines after shearing
-            SDL_FPoint topleft  = {cam_min_x, cam_min_y};
-            SDL_FPoint topright = {cam_max_x, cam_min_y};
-            SDL_FPoint btmleft  = {cam_min_x, cam_max_y};
-            SDL_FPoint btmright = {cam_max_x, cam_max_y};
 
-            float x_step = cam_min_x;
-            for(int i = 0; x_step <= cam_max_x; i++)
-            {
-                x_step = (cam_min_x + (i * SPACING_X_AXIS));
-                SDL_FPoint top  = apply_transform(SDL_FPoint {x_step, cam_min_y}); // TODO change once we remove struct point
-                SDL_FPoint btm  = apply_transform(SDL_FPoint {x_step, cam_max_y});
-                SDL_RenderDrawLine(renderer, top.x, top.y, btm.x, btm.y);
-            }
-            float y_step = cam_min_y;
-            for(int i = 0; y_step <= cam_max_y; i++)
-            {
-                y_step = (cam_min_y + (i * SPACING_Y_AXIS));
-                SDL_FPoint top  = apply_transform(SDL_FPoint {cam_min_x, y_step}); // TODO change once we remove struct point
-                SDL_FPoint btm  = apply_transform(SDL_FPoint {cam_max_x, y_step});
-                SDL_RenderDrawLine(renderer, top.x, top.y, btm.x, btm.y);
-            }
+            { /* DRAW TEXTURES ON THE TILE GRID */
+                for(float i = 0, x_step = cam_min_x; x_step < (cam_max_x - SPACING_X_AXIS); i++)
+                  for(float j = 0, y_step = cam_min_y; y_step < (cam_max_y - SPACING_Y_AXIS); j++)
+                {
+                    x_step = (cam_min_x + (i * SPACING_X_AXIS));
+                    y_step = (cam_min_y + (j * SPACING_Y_AXIS));
 
-            // TODO find a way to "if (..)" here...
-            {
-                // TODO maybe just use SDL_FPoint everywhere instead of our own
-                // TODO I believe we are off by one px somewhere...
-                // TODO we are off by one vertical line when we shear on the x axis / off by one horizontal line when we shear on the y axis
+                    SDL_FPoint top_L = apply_transform(SDL_FPoint{x_step, y_step});
+                    SDL_FPoint btm_L = apply_transform(SDL_FPoint{x_step, y_step + SPACING_Y_AXIS});
+                    SDL_FPoint btm_R = apply_transform(SDL_FPoint{x_step + SPACING_X_AXIS, y_step + SPACING_Y_AXIS});
+                    SDL_FPoint top_R = apply_transform(SDL_FPoint{x_step + SPACING_X_AXIS, y_step});
+                    SDL_Color  none  = {255,255,255,SDL_ALPHA_OPAQUE};
+
+                    SDL_Vertex verts[8] = {
+                                          /* vtx    col   uv   */
+                                            {top_L, none, {0,0}}, // first triangle
+                                            {btm_L, none, {0,1}},
+                                            {btm_R, none, {1,1}},
+                                            {top_R, none, {1,0}}, // second triangle
+                                            {top_L, none, {0,0}},
+                                            {btm_R, none, {1,1}},
+                                          };
+                    SDL_RenderGeometry(renderer, texture, verts, 6, NULL, 0);
+                }
+
+                // TODO find a way to "if (..)" here...
                 SDL_FPoint top_L = apply_transform(SDL_FPoint{vert_line, hori_line});
                 SDL_FPoint btm_L = apply_transform(SDL_FPoint{vert_line, hori_line + SPACING_Y_AXIS});
                 SDL_FPoint btm_R = apply_transform(SDL_FPoint{vert_line + SPACING_X_AXIS, hori_line + SPACING_Y_AXIS});
                 SDL_FPoint top_R = apply_transform(SDL_FPoint{vert_line + SPACING_X_AXIS, hori_line});
 
-                SDL_Color  red     = {255,0,0,SDL_ALPHA_OPAQUE};
+                SDL_Color  red     = {120,0,0,100};
                 SDL_Color  green   = {0,255,0,SDL_ALPHA_OPAQUE};
                 SDL_Color  blue    = {0,0,255,SDL_ALPHA_OPAQUE};
                 SDL_Color  yellow  = {250,250,0,SDL_ALPHA_OPAQUE};
-                SDL_Color  none    = {255,255,255,SDL_ALPHA_OPAQUE};
+                //SDL_Color  none    = {255,255,255,SDL_ALPHA_OPAQUE};
+                SDL_Color  none    = {120,255,120,180}; // TODO can't draw transparent color over texture...
                 SDL_Vertex verts[8] = {
                                       /* vtx    col   uv   */
                                         {top_L, none, {0,0}}, // first triangle
@@ -228,6 +223,24 @@ int main(int argc, char** argv)
                                       };
                 SDL_RenderGeometry(renderer, texture, verts, 6, NULL, 0);
             }
+
+            // new way to draw the lines
+            // NOTE float i for multiple var declaration inside for loop
+            for(float i = 0, x_step = cam_min_x; x_step < cam_max_x; i++)
+            {
+                x_step = (cam_min_x + (i * SPACING_X_AXIS));
+                SDL_FPoint top  = apply_transform(SDL_FPoint {x_step, cam_min_y}); // TODO change once we remove struct point
+                SDL_FPoint btm  = apply_transform(SDL_FPoint {x_step, cam_max_y});
+                SDL_RenderDrawLine(renderer, top.x, top.y, btm.x, btm.y);
+            }
+            for(float i = 0, y_step = cam_min_y; y_step < cam_max_y; i++)
+            {
+                y_step = (cam_min_y + (i * SPACING_Y_AXIS));
+                SDL_FPoint top  = apply_transform(SDL_FPoint {cam_min_x, y_step}); // TODO change once we remove struct point
+                SDL_FPoint btm  = apply_transform(SDL_FPoint {cam_max_x, y_step});
+                SDL_RenderDrawLine(renderer, top.x, top.y, btm.x, btm.y);
+            }
+
 
             SDL_RenderPresent(renderer);
         } /* end render */
