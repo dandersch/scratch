@@ -7,14 +7,22 @@
 #include <algorithm> // for std::min/max TODO use own...
 
 static float shear_x = 0.6f; // NOTE: we get a dent in the unsheared grid when starting with >= 0.7f...
-static float shear_y = 0;
+static float shear_y = 0;    // TODO have transform matrix and take pointers to its elements instead of this
 
 // NOTE for now camera w/h == screen w/h
 // TODO use a rect with a width & height
 static float camera_pos_x = 0;
 static float camera_pos_y = 0;
 
-SDL_FPoint apply_transform(SDL_FPoint p) // apply a shear transform
+//static float transform[9] = {1, 0.6, 0,
+//                             0,   1, 0,
+//                             0,   0, 1};
+//static float* shear_x      = &transform[1];
+//static float* shear_y      = &transform[3];
+//static float* camera_pos_x = &transform[2];
+//static float* camera_pos_y = &transform[5];
+
+SDL_FPoint apply_transform(SDL_FPoint p) // apply a shear transform and the camera translation
 {
     SDL_FPoint sheared_p = {0,0};
     float transform[9] = {      1, shear_x, -camera_pos_x,
@@ -25,24 +33,22 @@ SDL_FPoint apply_transform(SDL_FPoint p) // apply a shear transform
     return sheared_p;
 };
 
-SDL_FPoint apply_inverse(SDL_FPoint p) // remove shear
+SDL_FPoint apply_inverse(SDL_FPoint p, bool translate = true) // remove shear
 {
     SDL_FPoint unsheared_p = {0,0};
     float inverse[9]  = {(1.f / (1.f - (shear_x * shear_y))), shear_x/(shear_x*shear_y - 1.f),  (camera_pos_x-(camera_pos_y*shear_x))/(1.f - shear_x*shear_y),
                              shear_y/(shear_x*shear_y - 1.f),     1.f/(1.f - shear_x*shear_y),  (camera_pos_y-(shear_y*camera_pos_x))/(1.f - shear_x*shear_y),
                                                            0,                               0,  1};
-    unsheared_p.x = p.x * inverse[0] + p.y * inverse[1] + 1 * inverse[2];
-    unsheared_p.y = p.x * inverse[3] + p.y * inverse[4] + 1 * inverse[5];
-    return unsheared_p;
-};
-SDL_FPoint apply_inverse_no_translation(SDL_FPoint p) // remove shear
-{
-    SDL_FPoint unsheared_p = {0,0};
-    float inverse[9]  = {(1.f / (1.f - (shear_x * shear_y))), shear_x/(shear_x*shear_y - 1.f),  0,
-                             shear_y/(shear_x*shear_y - 1.f),     1.f/(1.f - shear_x*shear_y),  0,
-                                                           0,                               0,  1};
-    unsheared_p.x = p.x * inverse[0] + p.y * inverse[1] + 1 * inverse[2];
-    unsheared_p.y = p.x * inverse[3] + p.y * inverse[4] + 1 * inverse[5];
+    unsheared_p.x = p.x * inverse[0] + p.y * inverse[1];
+    unsheared_p.y = p.x * inverse[3] + p.y * inverse[4];
+
+    // apply translation separately
+    if (translate)
+    {
+        unsheared_p.x += 1 * inverse[2];
+        unsheared_p.y += 1 * inverse[5];
+    }
+
     return unsheared_p;
 };
 
@@ -102,7 +108,6 @@ int main(int argc, char** argv)
             }
         } /* end event */
 
-        // TODO probably better to not use pointers
         float vert_line = 0; // TODO set to some float that we consider invalid
         float hori_line = 0; // TODO set to some float that we consider invalid
         float cam_min_x = 0;
@@ -113,11 +118,11 @@ int main(int argc, char** argv)
 
             // find out which lines we have to draw for the current camera:
             // 1. create topleft, topright, btmleft, btmright w/ camera_pos_x/y+w/h (no clamping)
-            // 2. apply transform to those points (not inverse)
-            SDL_FPoint topleft   = apply_inverse_no_translation(SDL_FPoint {camera_pos_x, camera_pos_y});
-            SDL_FPoint topright  = apply_inverse_no_translation(SDL_FPoint {camera_pos_x + CAMERA_WIDTH, camera_pos_y});
-            SDL_FPoint btmleft   = apply_inverse_no_translation(SDL_FPoint {camera_pos_x, camera_pos_y + CAMERA_HEIGHT});
-            SDL_FPoint btmright  = apply_inverse_no_translation(SDL_FPoint {camera_pos_x + CAMERA_WIDTH, camera_pos_y + CAMERA_HEIGHT});
+            // 2. apply inverse to those points without the camera translation
+            SDL_FPoint topleft   = apply_inverse({camera_pos_x, camera_pos_y},                                false);
+            SDL_FPoint topright  = apply_inverse({camera_pos_x + CAMERA_WIDTH, camera_pos_y},                 false);
+            SDL_FPoint btmleft   = apply_inverse({camera_pos_x, camera_pos_y + CAMERA_HEIGHT},                false);
+            SDL_FPoint btmright  = apply_inverse({camera_pos_x + CAMERA_WIDTH, camera_pos_y + CAMERA_HEIGHT}, false);
 
             // 3. get the min_x/max_x & min_y/max_y from those points
             cam_min_x = std::min(std::min(std::min(topleft.x, topright.x), btmleft.x), btmright.x);
@@ -140,7 +145,7 @@ int main(int argc, char** argv)
 
             // find out between which lines the mouse is
             // TODO behaves wrong for negative grid_mouse.x/y
-            SDL_FPoint grid_mouse = apply_inverse(mouse_pos);
+            SDL_FPoint grid_mouse = apply_inverse(mouse_pos, true);
             vert_line = (int) (grid_mouse.x - ((int) grid_mouse.x % SPACING_X_AXIS));
             hori_line = (int) (grid_mouse.y - ((int) grid_mouse.y % SPACING_Y_AXIS));
             //if (grid_mouse.x < 0) {}
@@ -182,10 +187,10 @@ int main(int argc, char** argv)
                     x_step = (cam_min_x + (i * SPACING_X_AXIS));
                     y_step = (cam_min_y + (j * SPACING_Y_AXIS));
 
-                    SDL_FPoint top_L = apply_transform(SDL_FPoint{x_step, y_step});
-                    SDL_FPoint btm_L = apply_transform(SDL_FPoint{x_step, y_step + SPACING_Y_AXIS});
-                    SDL_FPoint btm_R = apply_transform(SDL_FPoint{x_step + SPACING_X_AXIS, y_step + SPACING_Y_AXIS});
-                    SDL_FPoint top_R = apply_transform(SDL_FPoint{x_step + SPACING_X_AXIS, y_step});
+                    SDL_FPoint top_L = apply_transform({x_step, y_step});
+                    SDL_FPoint btm_L = apply_transform({x_step, y_step + SPACING_Y_AXIS});
+                    SDL_FPoint btm_R = apply_transform({x_step + SPACING_X_AXIS, y_step + SPACING_Y_AXIS});
+                    SDL_FPoint top_R = apply_transform({x_step + SPACING_X_AXIS, y_step});
                     SDL_Color  none  = {255,255,255,SDL_ALPHA_OPAQUE};
 
                     SDL_Vertex verts[8] = {
@@ -201,17 +206,17 @@ int main(int argc, char** argv)
                 }
 
                 // TODO find a way to "if (..)" here...
-                SDL_FPoint top_L = apply_transform(SDL_FPoint{vert_line, hori_line});
-                SDL_FPoint btm_L = apply_transform(SDL_FPoint{vert_line, hori_line + SPACING_Y_AXIS});
-                SDL_FPoint btm_R = apply_transform(SDL_FPoint{vert_line + SPACING_X_AXIS, hori_line + SPACING_Y_AXIS});
-                SDL_FPoint top_R = apply_transform(SDL_FPoint{vert_line + SPACING_X_AXIS, hori_line});
+                SDL_FPoint top_L = apply_transform({vert_line, hori_line});
+                SDL_FPoint btm_L = apply_transform({vert_line, hori_line + SPACING_Y_AXIS});
+                SDL_FPoint btm_R = apply_transform({vert_line + SPACING_X_AXIS, hori_line + SPACING_Y_AXIS});
+                SDL_FPoint top_R = apply_transform({vert_line + SPACING_X_AXIS, hori_line});
 
                 SDL_Color  red     = {120,0,0,100};
                 SDL_Color  green   = {0,255,0,SDL_ALPHA_OPAQUE};
                 SDL_Color  blue    = {0,0,255,SDL_ALPHA_OPAQUE};
                 SDL_Color  yellow  = {250,250,0,SDL_ALPHA_OPAQUE};
                 //SDL_Color  none    = {255,255,255,SDL_ALPHA_OPAQUE};
-                SDL_Color  none    = {120,255,120,180}; // TODO can't draw transparent color over texture...
+                SDL_Color  none    = {40,255,40,240}; // TODO can't draw transparent color over texture...
                 SDL_Vertex verts[8] = {
                                       /* vtx    col   uv   */
                                         {top_L, none, {0,0}}, // first triangle
@@ -229,15 +234,15 @@ int main(int argc, char** argv)
             for(float i = 0, x_step = cam_min_x; x_step < cam_max_x; i++)
             {
                 x_step = (cam_min_x + (i * SPACING_X_AXIS));
-                SDL_FPoint top  = apply_transform(SDL_FPoint {x_step, cam_min_y}); // TODO change once we remove struct point
-                SDL_FPoint btm  = apply_transform(SDL_FPoint {x_step, cam_max_y});
+                SDL_FPoint top  = apply_transform({x_step, cam_min_y});
+                SDL_FPoint btm  = apply_transform({x_step, cam_max_y});
                 SDL_RenderDrawLine(renderer, top.x, top.y, btm.x, btm.y);
             }
             for(float i = 0, y_step = cam_min_y; y_step < cam_max_y; i++)
             {
                 y_step = (cam_min_y + (i * SPACING_Y_AXIS));
-                SDL_FPoint top  = apply_transform(SDL_FPoint {cam_min_x, y_step}); // TODO change once we remove struct point
-                SDL_FPoint btm  = apply_transform(SDL_FPoint {cam_max_x, y_step});
+                SDL_FPoint top  = apply_transform({cam_min_x, y_step});
+                SDL_FPoint btm  = apply_transform({cam_max_x, y_step});
                 SDL_RenderDrawLine(renderer, top.x, top.y, btm.x, btm.y);
             }
 
