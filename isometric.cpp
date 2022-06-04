@@ -76,6 +76,7 @@ int main(int argc, char** argv)
 
     SDL_FPoint mouse_pos = {0,0};
     bool is_running = true;
+    bool do_lerp = false;
     while (is_running)
     {
         { /* event loop */
@@ -89,16 +90,38 @@ int main(int argc, char** argv)
 
                 if (event.type == SDL_KEYDOWN)
                 {
-                    if (event.key.keysym.sym == SDLK_x) { shear_x -= 0.1f; /* printf("shear_x: %f\n", shear_x);*/ }
-                    if (event.key.keysym.sym == SDLK_c) { shear_x += 0.1f; /* printf("shear_x: %f\n", shear_x);*/ }
-                    if (event.key.keysym.sym == SDLK_s) { shear_y -= 0.1f; /* printf("shear_y: %f\n", shear_y);*/ }
-                    if (event.key.keysym.sym == SDLK_d) { shear_y += 0.1f; /* printf("shear_y: %f\n", shear_y);*/ }
+                    if (event.key.keysym.sym == SDLK_l) { do_lerp = !do_lerp; }
+                    if (event.key.keysym.sym == SDLK_x) { shear_x -= 0.1f; }
+                    if (event.key.keysym.sym == SDLK_c) { shear_x += 0.1f; }
+                    if (event.key.keysym.sym == SDLK_s) { shear_y -= 0.1f; }
+                    if (event.key.keysym.sym == SDLK_d) { shear_y += 0.1f; }
 
-                    if (event.key.keysym.sym == SDLK_UP)    { camera_pos_y -= 3.0f; /*printf("cam_x: %f\n", camera_pos_x);*/}
-                    if (event.key.keysym.sym == SDLK_DOWN)  { camera_pos_y += 3.0f; /*printf("cam_x: %f\n", camera_pos_x);*/}
-                    if (event.key.keysym.sym == SDLK_LEFT)  { camera_pos_x -= 3.0f; /*printf("cam_y: %f\n", camera_pos_y);*/}
-                    if (event.key.keysym.sym == SDLK_RIGHT) { camera_pos_x += 3.0f; /*printf("cam_y: %f\n", camera_pos_y);*/}
+                    if (event.key.keysym.sym == SDLK_UP)
+                    {
+                        SDL_FPoint up_vec = apply_inverse({ 0,-1}, false);
+                        camera_pos_x -= 3 * up_vec.x; // TODO what's going with these signs
+                        camera_pos_y += 3 * up_vec.y;
+                    }
+                    if (event.key.keysym.sym == SDLK_DOWN)
+                    {
+                        SDL_FPoint down_vec = apply_inverse({ 0, 1}, false);
+                        camera_pos_x -= 3 * down_vec.x;
+                        camera_pos_y += 3 * down_vec.y;
+                    }
+                    if (event.key.keysym.sym == SDLK_LEFT)
+                    {
+                        SDL_FPoint left_vec = apply_inverse({-1, 0}, false);
+                        camera_pos_x += 3 * left_vec.x;
+                        camera_pos_y -= 3 * left_vec.y;
+                    }
+                    if (event.key.keysym.sym == SDLK_RIGHT)
+                    {
+                        SDL_FPoint right_vec = apply_inverse({-1, 0}, false);
+                        camera_pos_x -= 3 * right_vec.x;
+                        camera_pos_y += 3 * right_vec.y;
+                    }
                 }
+
 
                 if (event.type == SDL_MOUSEMOTION)
                 {
@@ -107,6 +130,7 @@ int main(int argc, char** argv)
                 }
             }
         } /* end event */
+
 
         float vert_line = 0; // TODO set to some float that we consider invalid
         float hori_line = 0; // TODO set to some float that we consider invalid
@@ -153,25 +177,26 @@ int main(int argc, char** argv)
             //printf("mouse x: %f, y: %f\n", vert_line, hori_line);
 
             // do a lerp for some nice looking animation
-            #if 1
-            float time_to_lerp       = 5000.f; // TODO use a timestep in the future
-            static float timer       = 0;
-            static bool  lerp_to_max = true;
-            timer += 2.f;
-            float interpolant = timer/time_to_lerp;
-            float min = -0.5f; float max =  0.5f;
-            if (lerp_to_max) {
-                               shear_x = min + interpolant * (max - min);
-                               shear_y = min + interpolant * (max - min);
-                             }
-            else             {
-                               shear_x = max + interpolant * (min - max);
-                               shear_y = max + interpolant * (min - max);
-                             }
+            if (do_lerp)
+            {
+                float time_to_lerp       = 5000.f; // TODO use a timestep in the future
+                static float timer       = 0;
+                static bool  lerp_to_max = true;
+                timer += 2.f;
+                float interpolant = timer/time_to_lerp;
+                float min = -0.2f; float max =  0.2f;
+                if (lerp_to_max) {
+                    shear_x = min + interpolant * (max - min);
+                    shear_y = min + interpolant * (max - min);
+                }
+                else             {
+                    shear_x = max + interpolant * (min - max);
+                    shear_y = max + interpolant * (min - max);
+                }
 
-            if (shear_x >= max) { lerp_to_max = false; timer = 0; }
-            if (shear_x <= min) { lerp_to_max = true;  timer = 0; }
-            #endif
+                if (shear_x >= max) { lerp_to_max = false; timer = 0; }
+                if (shear_x <= min) { lerp_to_max = true;  timer = 0; }
+            }
         } /* end update */
 
         { /* render loop */
