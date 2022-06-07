@@ -4,49 +4,36 @@
 #include <SDL_events.h>
 #include <SDL_render.h>
 
-#include <algorithm> // for std::min/max TODO use own...
+#include "../basic/basic.h" // TODO include in project when ready
 
-static float shear_x = 0.6f; // NOTE: we get a dent in the unsheared grid when starting with >= 0.7f...
-static float shear_y = 0;    // TODO have transform matrix and take pointers to its elements instead of this
-
-// NOTE for now camera w/h == screen w/h
-// TODO use a rect with a width & height
-static float camera_pos_x = 0;
-static float camera_pos_y = 0;
-
-//static float transform[9] = {1, 0.6, 0,
-//                             0,   1, 0,
-//                             0,   0, 1};
-//static float* shear_x      = &transform[1];
-//static float* shear_y      = &transform[3];
-//static float* camera_pos_x = &transform[2];
-//static float* camera_pos_y = &transform[5];
+static m3f transform = {1, 0.6, 0,  // NOTE: we get a dent in the unsheared grid when starting with >= 0.7f...
+                        0,   1, 0,
+                        0,   0, 1};
+static float* shear_x      = &transform[0][1];
+static float* shear_y      = &transform[1][0];
+static float* camera_pos_x = &transform[0][2]; // NOTE for now camera w/h == screen w/h
+static float* camera_pos_y = &transform[1][2]; // TODO use a rect with a width & height
 
 SDL_FPoint apply_transform(SDL_FPoint p) // apply a shear transform and the camera translation
 {
     SDL_FPoint sheared_p = {0,0};
-    float transform[9] = {      1, shear_x, -camera_pos_x,
-                          shear_y,       1, -camera_pos_y,
-                                0,       0, 1};
-    sheared_p.x = p.x * transform[0] + p.y * transform[1] + 1 * transform[2];
-    sheared_p.y = p.x * transform[3] + p.y * transform[4] + 1 * transform[5];
+    sheared_p.x = p.x * transform[0][0] + p.y * transform[0][1] + 1 * transform[0][2];
+    sheared_p.y = p.x * transform[1][0] + p.y * transform[1][1] + 1 * transform[1][2];
     return sheared_p;
 };
 
 SDL_FPoint apply_inverse(SDL_FPoint p, bool translate = true) // remove shear
 {
     SDL_FPoint unsheared_p = {0,0};
-    float inverse[9]  = {(1.f / (1.f - (shear_x * shear_y))), shear_x/(shear_x*shear_y - 1.f),  (camera_pos_x-(camera_pos_y*shear_x))/(1.f - shear_x*shear_y),
-                             shear_y/(shear_x*shear_y - 1.f),     1.f/(1.f - shear_x*shear_y),  (camera_pos_y-(shear_y*camera_pos_x))/(1.f - shear_x*shear_y),
-                                                           0,                               0,  1};
-    unsheared_p.x = p.x * inverse[0] + p.y * inverse[1];
-    unsheared_p.y = p.x * inverse[3] + p.y * inverse[4];
+    m3f inverse = m3f_inv(transform);
+    unsheared_p.x = p.x * inverse[0][0] + p.y * inverse[0][1];
+    unsheared_p.y = p.x * inverse[1][0] + p.y * inverse[1][1];
 
     // apply translation separately
     if (translate)
     {
-        unsheared_p.x += 1 * inverse[2];
-        unsheared_p.y += 1 * inverse[5];
+        unsheared_p.x += 1 * inverse[0][2];
+        unsheared_p.y += 1 * inverse[1][2];
     }
 
     return unsheared_p;
@@ -91,34 +78,34 @@ int main(int argc, char** argv)
                 if (event.type == SDL_KEYDOWN)
                 {
                     if (event.key.keysym.sym == SDLK_l) { do_lerp = !do_lerp; }
-                    if (event.key.keysym.sym == SDLK_x) { shear_x -= 0.1f; }
-                    if (event.key.keysym.sym == SDLK_c) { shear_x += 0.1f; }
-                    if (event.key.keysym.sym == SDLK_s) { shear_y -= 0.1f; }
-                    if (event.key.keysym.sym == SDLK_d) { shear_y += 0.1f; }
+                    if (event.key.keysym.sym == SDLK_x) { *shear_x -= 0.1f; }
+                    if (event.key.keysym.sym == SDLK_c) { *shear_x += 0.1f; }
+                    if (event.key.keysym.sym == SDLK_s) { *shear_y -= 0.1f; }
+                    if (event.key.keysym.sym == SDLK_d) { *shear_y += 0.1f; }
 
                     if (event.key.keysym.sym == SDLK_UP)
                     {
                         SDL_FPoint up_vec = apply_inverse({ 0,-1}, false);
-                        camera_pos_x -= 3 * up_vec.x; // TODO what's going with these signs
-                        camera_pos_y += 3 * up_vec.y;
+                        *camera_pos_x += 3 * up_vec.x; // TODO what's going with these signs
+                        *camera_pos_y -= 3 * up_vec.y;
                     }
                     if (event.key.keysym.sym == SDLK_DOWN)
                     {
                         SDL_FPoint down_vec = apply_inverse({ 0, 1}, false);
-                        camera_pos_x -= 3 * down_vec.x;
-                        camera_pos_y += 3 * down_vec.y;
+                        *camera_pos_x += 3 * down_vec.x;
+                        *camera_pos_y -= 3 * down_vec.y;
                     }
                     if (event.key.keysym.sym == SDLK_LEFT)
                     {
                         SDL_FPoint left_vec = apply_inverse({-1, 0}, false);
-                        camera_pos_x += 3 * left_vec.x;
-                        camera_pos_y -= 3 * left_vec.y;
+                        *camera_pos_x -= 3 * left_vec.x;
+                        *camera_pos_y += 3 * left_vec.y;
                     }
                     if (event.key.keysym.sym == SDLK_RIGHT)
                     {
                         SDL_FPoint right_vec = apply_inverse({-1, 0}, false);
-                        camera_pos_x -= 3 * right_vec.x;
-                        camera_pos_y += 3 * right_vec.y;
+                        *camera_pos_x += 3 * right_vec.x;
+                        *camera_pos_y -= 3 * right_vec.y;
                     }
                 }
 
@@ -143,16 +130,17 @@ int main(int argc, char** argv)
             // find out which lines we have to draw for the current camera:
             // 1. create topleft, topright, btmleft, btmright w/ camera_pos_x/y+w/h (no clamping)
             // 2. apply inverse to those points without the camera translation
-            SDL_FPoint topleft   = apply_inverse({camera_pos_x, camera_pos_y},                                false);
-            SDL_FPoint topright  = apply_inverse({camera_pos_x + CAMERA_WIDTH, camera_pos_y},                 false);
-            SDL_FPoint btmleft   = apply_inverse({camera_pos_x, camera_pos_y + CAMERA_HEIGHT},                false);
-            SDL_FPoint btmright  = apply_inverse({camera_pos_x + CAMERA_WIDTH, camera_pos_y + CAMERA_HEIGHT}, false);
+            // TODO what is up with the signs for cam positions
+            SDL_FPoint topleft   = apply_inverse({-*camera_pos_x, -*camera_pos_y},                                false);
+            SDL_FPoint topright  = apply_inverse({-*camera_pos_x + CAMERA_WIDTH, -*camera_pos_y},                 false);
+            SDL_FPoint btmleft   = apply_inverse({-*camera_pos_x, -*camera_pos_y + CAMERA_HEIGHT},                false);
+            SDL_FPoint btmright  = apply_inverse({-*camera_pos_x + CAMERA_WIDTH, -*camera_pos_y + CAMERA_HEIGHT}, false);
 
             // 3. get the min_x/max_x & min_y/max_y from those points
-            cam_min_x = std::min(std::min(std::min(topleft.x, topright.x), btmleft.x), btmright.x);
-            cam_min_y = std::min(std::min(std::min(topleft.y, topright.y), btmleft.y), btmright.y);
-            cam_max_x = std::max(std::max(std::max(topleft.x, topright.x), btmleft.x), btmright.x);
-            cam_max_y = std::max(std::max(std::max(topleft.y, topright.y), btmleft.y), btmright.y);
+            cam_min_x = MIN(MIN(MIN(topleft.x, topright.x), btmleft.x), btmright.x);
+            cam_min_y = MIN(MIN(MIN(topleft.y, topright.y), btmleft.y), btmright.y);
+            cam_max_x = MAX(MAX(MAX(topleft.x, topright.x), btmleft.x), btmright.x);
+            cam_max_y = MAX(MAX(MAX(topleft.y, topright.y), btmleft.y), btmright.y);
 
             // 4. clamp those min/max_x/y values like above
             cam_min_x = (int) cam_min_x - ((int) cam_min_x % SPACING_X_AXIS); // TODO define SPACING_*_AXIS as float
@@ -186,16 +174,16 @@ int main(int argc, char** argv)
                 float interpolant = timer/time_to_lerp;
                 float min = -0.2f; float max =  0.2f;
                 if (lerp_to_max) {
-                    shear_x = min + interpolant * (max - min);
-                    shear_y = min + interpolant * (max - min);
+                    *shear_x = min + interpolant * (max - min);
+                    *shear_y = min + interpolant * (max - min);
                 }
                 else             {
-                    shear_x = max + interpolant * (min - max);
-                    shear_y = max + interpolant * (min - max);
+                    *shear_x = max + interpolant * (min - max);
+                    *shear_y = max + interpolant * (min - max);
                 }
 
-                if (shear_x >= max) { lerp_to_max = false; timer = 0; }
-                if (shear_x <= min) { lerp_to_max = true;  timer = 0; }
+                if (*shear_x >= max) { lerp_to_max = false; timer = 0; }
+                if (*shear_x <= min) { lerp_to_max = true;  timer = 0; }
             }
         } /* end update */
 
@@ -275,4 +263,6 @@ int main(int argc, char** argv)
             SDL_RenderPresent(renderer);
         } /* end render */
     }
+
+    return 0;
 }

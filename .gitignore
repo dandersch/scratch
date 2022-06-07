@@ -1,4 +1,6 @@
 .cache/
 compile_commands.json
-iso
+isometric
 gf2
+*.exe
+*.obj
