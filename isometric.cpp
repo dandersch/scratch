@@ -4,7 +4,7 @@
 #include <SDL_events.h>
 #include <SDL_render.h>
 
-#include "../basic/basic.h" // TODO include in project when ready
+#include "../basic/basic.h" // TODO include this in project when ready
 
 static m3f transform = {1, 0.6, 0,  // NOTE: we get a dent in the unsheared grid when starting with >= 0.7f...
                         0,   1, 0,
