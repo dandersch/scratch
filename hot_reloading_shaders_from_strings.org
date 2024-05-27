@@ -1,0 +1,5 @@
+
+* Resources
+https://antongerdelan.net/opengl/shader_hot_reload.html
+https://slembcke.github.io/HotLoadC
+https://shadowndacorner.com/2018/04/14/adventures-in-cpp-hotloading/
