@@ -6,9 +6,24 @@ const char* vertex_shader_source =
       #include "shader.vert"
     ;
 
-const char* fragment_shader_source =
+const char* fragment_shader_source = 
       #include "shader.frag"
     ;
+
+
+// TODO load in as texture
+const char* bitmap =
+    " ##### "
+    "#..#..#"
+    "#..#..#"
+    "#.###.#"
+    "###.###"
+    "##.#.##"
+    " ##### "
+    " #.#.# "
+    " #.#.# "
+    ;
+
 
 // Vertex data for a triangle
 GLfloat vertices[] =
