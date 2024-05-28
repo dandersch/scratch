@@ -3,11 +3,15 @@
 #define SHADER_STRINGIFY(x) "#version 330\n" #x
 
 const char* vertex_shader_source =
-      #include "shader.vert"
+      #define VERT_SHADER
+      #include "shader.glsl"
+      #undef VERT_SHADER
     ;
 
-const char* fragment_shader_source = 
-      #include "shader.frag"
+const char* fragment_shader_source =
+      #define FRAG_SHADER
+      #include "shader.glsl"
+      #undef FRAG_SHADER
     ;
 
 
