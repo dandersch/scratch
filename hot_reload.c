@@ -18,20 +18,30 @@ const char* fragment_shader_source =
 typedef struct char_to_color_t { char character; unsigned char color[4]; } char_to_color_t;
 char_to_color_t char_to_color_map[] = {
     {'#', {255,255,255,0}},
+    {'^', {255,255,0,0}},
+    {'@', {255,0,0,0}},
     {' ', {0,0,0,255}},
     {'.', {0,0,0,0}}
 };
-const int width    = 8;
-const int height   = 8;
+const int width    = 16;
+const int height   = 16;
 const char bitmap[]  = {
-    " ###### "
-    "#..##..#"
-    "#..##..#"
-    "#.####.#"
-    "###..###"
-    " ###### "
-    " #.##.# "
-    " #.##.# "
+    "                "
+    "  ^ ^ ^  ^ ^ ^  "
+    "  ^ ^ ^  ^ ^ ^  "
+    "  ^^^^^^^^^^^^  "
+    "  ^@^@^@@^@^@^  "
+    "  ^^^^^^^^^^^^  "
+    " ############## "
+    " #....####....# "
+    " #....####....# "
+    " #..###..###..# "
+    " #####....##### "
+    "  ############  "
+    "  #.########.#  "
+    "  #.#.#..#.#.#  "
+    "    #.#..#.#    "
+    "                "
 };
 const int tex_mode = GL_RGBA;
 unsigned char texture[64][4];
@@ -43,7 +53,7 @@ typedef struct vertex_t
 } vertex_t;
 
 const float x = 200.0f, y = 200.0f; // position for rendered quad on screen
-const float tex_size_x = 8.0f, tex_size_y = 8.0f;
+const float tex_size_x = (float) width * 1; const float tex_size_y = (float) height * 1;
 // vertices for a quad
 vertex_t vertices[] = {
 #if 0
