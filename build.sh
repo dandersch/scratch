@@ -1,6 +1,6 @@
 #!/bin/bash
 
-watched_files="hot_reload.c|shader.frag|shader.vert"
+watched_files="hot_reload.c|shader.frag|shader.vert|shader.glsl"
 
 # build dll
 clang --shared ${CmnCompilerFlags} -fPIC hot_reload.c -o ./code.dll -lGL -lGLEW

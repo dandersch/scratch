@@ -45,6 +45,7 @@ int platform_load_code()
 
     hello(&state); // test calling dll function
 
+
     // reload shader & "reinit" renderer
     init_renderer(&state);
     create_shader_program(&state);
@@ -68,12 +69,15 @@ int main(int argc, char* args[])
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) { fprintf(stderr, "Failed to initialize GLEW\n"); return -1; }
 
+
     // initial loading of dll
     int code_loaded = platform_load_code();
     if (!code_loaded) { exit(-1); }
     struct stat attr;
     stat(DLL_FILENAME, &attr);
     dll_id = attr.st_ino;
+
+
 
     // call dll functions
     init_renderer(&state);
