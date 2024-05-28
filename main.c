@@ -36,15 +36,14 @@ int platform_load_code()
         dll_handle = dlopen(DLL_FILENAME, RTLD_NOW);
     }
 
-    render = dlsym(dll_handle, "render");
+    render = (void (*)(state_t*)) dlsym(dll_handle, "render");
     if (!render) { printf("Finding render function failed\n"); return 0; }
 
-    create_shader_program = dlsym(dll_handle, "create_shader_program");
-    init_renderer         = dlsym(dll_handle, "init_renderer");
-    hello                 = dlsym(dll_handle, "hello");
+    create_shader_program = (void (*)(state_t*)) dlsym(dll_handle, "create_shader_program");
+    init_renderer         = (void (*)(state_t*)) dlsym(dll_handle, "init_renderer");
+    hello                 = (void (*)(state_t*)) dlsym(dll_handle, "hello");
 
     hello(&state); // test calling dll function
-
 
     // reload shader & "reinit" renderer
     init_renderer(&state);
@@ -60,7 +59,7 @@ int main(int argc, char* args[])
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    state.window = SDL_CreateWindow("OpenGL Window", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+    state.window = SDL_CreateWindow("OpenGL Window", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
     if (!state.window) { fprintf(stderr, "Failed to create SDL window: %s\n", SDL_GetError()); return -1; }
     state.context = SDL_GL_CreateContext(state.window); // opengl context
     if (!state.context) { fprintf(stderr, "Failed to create OpenGL context: %s\n", SDL_GetError()); return -1; }
@@ -69,15 +68,12 @@ int main(int argc, char* args[])
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) { fprintf(stderr, "Failed to initialize GLEW\n"); return -1; }
 
-
     // initial loading of dll
     int code_loaded = platform_load_code();
     if (!code_loaded) { exit(-1); }
     struct stat attr;
     stat(DLL_FILENAME, &attr);
     dll_id = attr.st_ino;
-
-
 
     // call dll functions
     init_renderer(&state);

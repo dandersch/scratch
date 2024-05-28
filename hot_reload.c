@@ -42,8 +42,11 @@ typedef struct vertex_t
     float tex_x,  tex_y;
 } vertex_t;
 
+const float x = 200.0f, y = 200.0f; // position for rendered quad on screen
+const float tex_size_x = 8.0f, tex_size_y = 8.0f;
 // vertices for a quad
 vertex_t vertices[] = {
+#if 0
       // bottom right tri
       {
          -0.5f, -0.5f, 0.0f, // bottom left
@@ -61,9 +64,8 @@ vertex_t vertices[] = {
      // upper left tri
      {
         0.5f,  0.5f, 0.0f, // top right
-        1.0f,  1.0f,       // top right
+        1.0f,  1.0f,       // uv
      },
-
      {
        -0.5f,  0.5f, 0.0f, // top left
         0.0f,  1.0f,       // uv
@@ -72,6 +74,35 @@ vertex_t vertices[] = {
        -0.5f, -0.5f, 0.0f, // bottom left
         0.0f,  0.0f,       // uv
      }
+#else
+     // bottom right tri
+     {
+         x,        y,        0.0f, // bottom left
+         0.0f,     0.0f,           // uv
+     },
+     {
+         x + tex_size_x, y,        0.0f, // bottom right
+         1.0f,           0.0f,           // uv
+     },
+     {
+         x + tex_size_x, y + tex_size_y, 0.0f, // top right
+         1.0f,          1.0f,                  // uv
+     },
+
+     // upper left tri
+     {
+        x + tex_size_x, y + tex_size_y, 0.0f, // top right
+        1.0f,           1.0f,                 // uv
+     },
+     {
+        x, y + tex_size_y, 0.0f,  // top left
+        0.0f,  1.0f,              // uv
+     },
+     {
+        x,        y,        0.0f, // bottom left
+        0.0f,     0.0f,           // uv
+     }
+#endif
 };
 
 // helper function
@@ -113,6 +144,29 @@ GLuint create_shader_program(state_t* state)
         fprintf(stderr, "ERROR::PROGRAM::LINKING_FAILED\n%s\n", infoLog);
         exit(EXIT_FAILURE);
     }
+
+    // orthographic projection
+    glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT); // NOTE hardcoded
+
+    float left   = 0.0f;
+    float right  = (float) SCREEN_WIDTH;
+    float bottom = 0.0f;
+    float top    = (float) SCREEN_HEIGHT;
+    float near   = -1.0f;
+    float far    = 1.0f;
+
+    float orthoProjection[16] = {
+        2.0f / (right - left), 0.0f, 0.0f, 0.0f,
+        0.0f, 2.0f / (top - bottom), 0.0f, 0.0f,
+        0.0f, 0.0f, -2.0f / (far - near), 0.0f,
+        -(right + left) / (right - left), -(top + bottom) / (top - bottom), -(far + near) / (far - near), 1.0f
+    };
+
+    // upload uniform
+    glUseProgram(state->shader_program); // NOTE: must be called before uploading uniform
+    int orthoLocation = glGetUniformLocation(state->shader_program, "orthoProjection");
+    if (orthoLocation == -1) { printf("Uniform not found\n"); }
+    glUniformMatrix4fv(orthoLocation, 1, GL_FALSE, orthoProjection);
 
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
@@ -209,6 +263,7 @@ int init_renderer(state_t* state)
 
     glTexImage2D(GL_TEXTURE_2D, 0, tex_mode, width, height, 0, tex_mode, GL_UNSIGNED_BYTE, texture);
 
+    // enable blending for transparency
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_SRC_ALPHA);
 
