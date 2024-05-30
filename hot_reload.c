@@ -52,8 +52,8 @@ typedef struct vertex_t
     float tex_x,  tex_y;
 } vertex_t;
 
-const float x = 200.0f, y = 200.0f; // position for rendered quad on screen
-const float tex_size_x = (float) width * 1; const float tex_size_y = (float) height * 1;
+const float x = 100.0f, y = 100.0f; // position for rendered quad on screen
+const float tex_size_x = (float) width * 8; const float tex_size_y = (float) height * 8;
 // vertices for a quad
 vertex_t vertices[] = {
 #if 0
@@ -172,11 +172,21 @@ GLuint create_shader_program(state_t* state)
         -(right + left) / (right - left), -(top + bottom) / (top - bottom), -(far + near) / (far - near), 1.0f
     };
 
-    // upload uniform
+    // upload uniforms
     glUseProgram(state->shader_program); // NOTE: must be called before uploading uniform
     int orthoLocation = glGetUniformLocation(state->shader_program, "orthoProjection");
     if (orthoLocation == -1) { printf("Uniform not found\n"); }
     glUniformMatrix4fv(orthoLocation, 1, GL_FALSE, orthoProjection);
+
+    float view_matrix[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f,
+    };
+    int view_matrix_uniform_location = glGetUniformLocation(state->shader_program, "view_matrix");
+    if (view_matrix_uniform_location == -1) { printf("Uniform not found\n"); }
+    glUniformMatrix4fv(view_matrix_uniform_location, 1, GL_FALSE, view_matrix);
 
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
@@ -184,12 +194,15 @@ GLuint create_shader_program(state_t* state)
     return state->shader_program;
 }
 
+
+static float time = 0;
 int render(state_t* state)
 {
     // Render
     glClear(GL_COLOR_BUFFER_BIT);
     glClearColor(0.1f, 0.2f, 0.1f, 0.2f);
     glUseProgram(state->shader_program);
+    glUniform1f(glGetUniformLocation(state->shader_program, "time"), time++);
     glBindVertexArray(state->VAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);

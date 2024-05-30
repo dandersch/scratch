@@ -14,7 +14,7 @@ typedef struct state_t
     SDL_Window* window;
 } state_t;
 
-#define SCREEN_WIDTH  600
-#define SCREEN_HEIGHT 600
+#define SCREEN_WIDTH  300
+#define SCREEN_HEIGHT 300
 
 #endif // COMMON_H_
