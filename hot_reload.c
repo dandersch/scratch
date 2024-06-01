@@ -131,7 +131,7 @@ GLuint compile_shader(GLenum type, const char* source)
     return shader; // NOTE unused
 }
 
-GLuint create_shader_program(state_t* state)
+EXPORT GLuint create_shader_program(state_t* state)
 {
     GLuint vertex_shader = compile_shader(GL_VERTEX_SHADER, vertex_shader_source);
     GLuint fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fragment_shader_source);
@@ -194,7 +194,7 @@ GLuint create_shader_program(state_t* state)
 
 
 static float time = 0;
-int render(state_t* state)
+EXPORT int render(state_t* state)
 {
     // Render
     glClear(GL_COLOR_BUFFER_BIT);
@@ -207,13 +207,13 @@ int render(state_t* state)
     return 0;
 }
 
-int hello(state_t* state)
+EXPORT int hello(state_t* state)
 {
     printf("Hello from DLL\n");
     return 0;
 }
 
-int init_renderer(state_t* state)
+EXPORT int init_renderer(state_t* state)
 {
     // Generate and bind vertex array object and vertex buffer object
     glGenVertexArrays(1, &state->VAO);
