@@ -7,6 +7,7 @@
 static void* dll_handle = NULL;
 static const char* DLL_FILENAME = "./code.dll";
 static unsigned int dll_id;
+static time_t dll_last_mod;
 static void (*hello)(state_t*) = NULL;
 static void (*render)(state_t*) = NULL;
 static void (*create_shader_program)(state_t*) = NULL;
@@ -82,6 +83,7 @@ int main(int argc, char* args[])
     struct stat attr;
     stat(DLL_FILENAME, &attr);
     dll_id = attr.st_ino;
+    dll_last_mod = attr.st_mtime;
 
     // call dll functions
     init_renderer(&state);
@@ -93,11 +95,12 @@ int main(int argc, char* args[])
     while (running)
     {
         /* check if dll has changed on disk */
-        if ((stat(DLL_FILENAME, &attr) == 0) && (dll_id != attr.st_ino))
+        if ((stat(DLL_FILENAME, &attr) == 0) && (dll_last_mod != attr.st_mtime))
         {
             printf("Attempting code hot reload...\n");
             platform_load_code();
-            dll_id = attr.st_ino;
+            dll_id       = attr.st_ino;
+            dll_last_mod = attr.st_mtime;
         }
 
         // event handling
