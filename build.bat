@@ -1,10 +1,20 @@
-#!/bin/bash
-
-# build exe
-cl.exe /I ./ /I ./dep main.c /link ./dep/SDL2main.lib ./dep/SDL2.lib shell32.lib opengl32.lib ./dep/glew32.lib /SUBSYSTEM:CONSOLE /OUT:main.exe
+echo >/dev/null # >nul & GOTO WINDOWS & rem ^
+echo 'Processing for Linux'
 
 # build dll
-clang-cl.exe /I ./ /I ./dep hot_reload.c /LD /link opengl32.lib ./dep/glew32.lib /NOIMPLIB /NOEXP /OUT:code.dll
+clang --shared -fPIC hot_reload.c -o ./code.dll -lGL -lGLEW
 
-# TODO find out how to not generate this file
-rm main.obj
+# build exe
+clang -I ./ -g $(sdl2-config --cflags) -fPIC -I/usr/include/GL -L$(pwd) -lSDL2 -lGL -lGLEW -ldl main.c -o main
+
+exit 0
+:WINDOWS
+@ECHO off
+echo 'Processing for Windows'
+
+REM build exe
+cl.exe /nologo /I ./ /I ./dep main.c /link ./dep/SDL2main.lib ./dep/SDL2.lib shell32.lib opengl32.lib ./dep/glew32.lib /SUBSYSTEM:CONSOLE /OUT:main.exe
+
+REM build dll
+clang-cl.exe /nologo /I ./ /I ./dep hot_reload.c /LD /link opengl32.lib ./dep/glew32.lib /NOIMPLIB /NOEXP /OUT:code.dll
+
