@@ -2,7 +2,8 @@
 
 /* HOT RELOAD */
 #include <sys/stat.h> // for checking if dll changed on disk
-#include <dlfcn.h>    // for opening shared objects (requires linking with -ldl)
+//#include <dlfcn.h>    // for opening shared objects (requires linking with -ldl)
+#include <SDL2/SDL_loadso.h>  // cross platform dll loading
 static void* dll_handle = NULL;
 static const char* DLL_FILENAME = "./code.dll";
 static unsigned int dll_id;
@@ -11,7 +12,7 @@ static void (*render)(state_t*) = NULL;
 static void (*create_shader_program)(state_t*) = NULL;
 static void (*init_renderer)(state_t*) = NULL;
 
-static state_t state = {}; // NOTE all program state lives in data section for this example
+static state_t state; // NOTE all program state lives in data section for this example
 
 int platform_load_code()
 {
@@ -24,24 +25,31 @@ int platform_load_code()
         init_renderer         = NULL;
         dll_id                = 0;
 
-        if (dlclose(dll_handle) != 0) { printf("Failed to close DLL\n"); }
+        //if (dlclose(dll_handle) != 0) { printf("Failed to close DLL\n"); }
+        SDL_UnloadObject(dll_handle);
         dll_handle = NULL;
     }
 
-    dll_handle = dlopen(DLL_FILENAME, RTLD_NOW);
+    //dll_handle = dlopen(dll_file, RTLD_NOW);
+    dll_handle = SDL_LoadObject(dll_file);
     if (dll_handle == NULL) { printf("Opening DLL failed. Trying again...\n"); }
     // NOTE try opening until it works, otherwise we need to sleep() for a moment to avoid a crash
     while (dll_handle == NULL)
     {
-        dll_handle = dlopen(DLL_FILENAME, RTLD_NOW);
+        dll_handle = SDL_LoadObject(dll_file);
+        /* dll_handle = dlopen(dll_file, RTLD_NOW); */
     }
 
-    render = (void (*)(state_t*)) dlsym(dll_handle, "render");
+    //render = (void (*)(state_t*)) dlsym(dll_handle, "render");
+    render = (void (*)(state_t*)) SDL_LoadFunction(dll_handle, "render");
     if (!render) { printf("Finding render function failed\n"); return 0; }
 
-    create_shader_program = (void (*)(state_t*)) dlsym(dll_handle, "create_shader_program");
-    init_renderer         = (void (*)(state_t*)) dlsym(dll_handle, "init_renderer");
-    hello                 = (void (*)(state_t*)) dlsym(dll_handle, "hello");
+    //create_shader_program = (void (*)(state_t*)) dlsym(dll_handle, "create_shader_program");
+    //init_renderer         = (void (*)(state_t*)) dlsym(dll_handle, "init_renderer");
+    //hello                 = (void (*)(state_t*)) dlsym(dll_handle, "hello");
+    create_shader_program = (void (*)(state_t*)) SDL_LoadFunction(dll_handle, "create_shader_program");
+    init_renderer         = (void (*)(state_t*)) SDL_LoadFunction(dll_handle, "init_renderer");
+    hello                 = (void (*)(state_t*)) SDL_LoadFunction(dll_handle, "hello");
 
     hello(&state); // test calling dll function
 
