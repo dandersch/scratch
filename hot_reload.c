@@ -2,16 +2,14 @@
 
 #define SHADER_STRINGIFY(x) "#version 330\n" #x
 
+#define VERT_SHADER
 const char* vertex_shader_source =
-      #define VERT_SHADER
       #include "shader.glsl"
-      #undef VERT_SHADER
     ;
 
+#define FRAG_SHADER
 const char* fragment_shader_source =
-      #define FRAG_SHADER
       #include "shader.glsl"
-      #undef FRAG_SHADER
     ;
 
 // loading a texture based of a char array

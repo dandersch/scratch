@@ -21,6 +21,7 @@ SHADER_STRINGIFY(
         o_time = time;
     };
 
+#undef VERT_SHADER
 #elif defined(FRAG_SHADER)
 
     out vec4 FragColor;
@@ -34,5 +35,6 @@ SHADER_STRINGIFY(
         FragColor  *= vec4(timer, 0.5, timer, 1);
     }
 
+#undef FRAG_SHADER
 #endif
 )
