@@ -1,11 +1,18 @@
 #include "common.h"
 
+
 /* HOT RELOAD */
 #include <sys/stat.h> // for checking if dll changed on disk
 //#include <dlfcn.h>    // for opening shared objects (requires linking with -ldl)
 #include <SDL2/SDL_loadso.h>  // cross platform dll loading
 static void* dll_handle = NULL;
+
+#if defined(_WIN32)
+  #include <windows.h>
+  static const char* DLL_TMP_FILE = "code.tmp.dll";
+#endif
 static const char* DLL_FILENAME = "./code.dll";
+
 static unsigned int dll_id;
 static time_t dll_last_mod;
 static void (*hello)(state_t*) = NULL;
@@ -17,6 +24,12 @@ static state_t state; // NOTE all program state lives in data section for this e
 
 int platform_load_code()
 {
+    #if defined(_WIN32)
+      const char* dll_file = DLL_TMP_FILE;
+    #else
+      const char* dll_file = DLL_FILENAME;
+    #endif
+
     // unload old dll
     if (dll_handle)
     {
@@ -29,6 +42,12 @@ int platform_load_code()
         //if (dlclose(dll_handle) != 0) { printf("Failed to close DLL\n"); }
         SDL_UnloadObject(dll_handle);
         dll_handle = NULL;
+
+
+        #ifdef _WIN32
+          Sleep(500);
+          CopyFile(DLL_FILENAME, DLL_TMP_FILE, 0);
+        #endif
     }
 
     //dll_handle = dlopen(dll_file, RTLD_NOW);
@@ -76,6 +95,10 @@ int main(int argc, char* args[])
     // Initialize GLEW
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) { fprintf(stderr, "Failed to initialize GLEW\n"); return -1; }
+
+    #ifdef _WIN32
+      CopyFile(DLL_FILENAME, DLL_TMP_FILE, 0);
+    #endif
 
     // initial loading of dll
     int code_loaded = platform_load_code();
