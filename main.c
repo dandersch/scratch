@@ -10,7 +10,7 @@ the hot-reload / serialisation issue of out-of-sync line changes is probs a non-
 
 // dependency
 #define SOKOL_TIME_IMPL
-#include "sokol_time.h"
+#include "dep/sokol_time.h"
 
 typedef struct Coroutine Coroutine;
 struct Coroutine
@@ -40,23 +40,71 @@ static struct Coroutine* coro = &g_coro;
 
 #include <stdio.h>
 
+struct CoroutineState
+{
+};
 
 void func_to_yield()
 {
-        CoroutineBegin(coro);
+    static int a = 4;
 
-        printf("1\n");
-        //CoroutineYield(coro);
-        CoroutineWait(coro, 4.0f);
-        printf("3\n");
+    struct CoroutineState* cs = (struct CoroutineState*) coro->data;
+    if (!cs) {
+        // inital allocation
+        //cs = (struct CoroutineState*) mem_arena_alloc(frame_arena, sizeof(CoroutineState));
+        coro->data = cs;
+    } else {
+        // juggle from previous to current frame arena
+        //cs = mem_arena_alloc(frame_arena, sizeof(CoroutineState));
+        //cs = memcpy(cs, coro->data,sizeof(CoroutineState));
+        coro->data = cs;
+    }
 
-        //CoroutineEnd(coro);
-        CoroutineReset(coro);
-        //CoroutineIsFinished(coro);
+    CoroutineBegin(coro);
+    printf("Hey\n");
+    a = 5;
+
+    CoroutineWait(coro, 0.5f);
+    printf("there\n"); // will be 4 if int is not static
+
+    CoroutineReset(coro);
+}
+
+#include <stdlib.h>
+#include <assert.h>
+typedef struct arena_t
+{
+    size_t size;
+    size_t capacity;
+    char data[];
+} arena_t;
+arena_t* arena_alloc(size_t capacity) {
+    arena_t* arena = (arena_t*) malloc(sizeof(arena_t) + capacity);
+    memset(arena,0,sizeof(arena_t) + capacity);
+    arena->capacity = capacity;
+    return arena;
+}
+void arena_clear(arena_t* arena) { memset(arena->data,0,arena->capacity); arena->size = 0; }
+void* arena_push(arena_t* arena, size_t size) {
+    void* buf      = NULL;
+    size_t push_to = arena->size + size;
+    if (push_to <= arena->capacity)
+    {
+        buf = arena->data + arena->size;
+        arena->size = push_to;
+    }
+    assert(buf);
+    return buf;
 }
 
 int main()
 {
+    arena_t* frame_arena      = arena_alloc(512);
+    arena_t* frame_arena_prev = arena_alloc(512);
+
+    printf("arena buffer: %p\n", frame_arena->data);
+    printf("arena prev buffer: %p\n", frame_arena_prev->data);
+
     stm_setup();
 
     uint64_t ticks_new = stm_now();
@@ -64,14 +112,18 @@ int main()
     for (;;)
     {
         ticks_new = stm_now();
-        if (stm_sec(stm_diff(ticks_new, ticks_old)) > 1)
+        if (stm_sec(stm_diff(ticks_new, ticks_old)) > 0.5)
         {
-            printf("Tick\n");
-
-            func_to_yield();
-            printf("2\n");
             func_to_yield();
 
+            printf("arena cap: %zu, size: %zu, buffer: %p\n", frame_arena->capacity, frame_arena->size, frame_arena->data);
+
+            /* swap */
+            arena_t* temp    = frame_arena;
+            frame_arena      = frame_arena_prev;
+            frame_arena_prev = temp;
+
+            arena_clear(frame_arena);
             ticks_old = stm_now();
         }
     };
