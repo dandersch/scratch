@@ -1,5 +1,6 @@
 #include "common.h"
 
+#include <SDL2/SDL.h>
 
 /* HOT RELOAD */
 #include <sys/stat.h> // for checking if dll changed on disk

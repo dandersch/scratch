@@ -50,10 +50,12 @@ typedef struct vertex_t
     float tex_x,  tex_y;
 } vertex_t;
 
-const float x = 100.0f, y = 100.0f; // position for rendered quad on screen
-const float tex_size_x = (float) width * 8; const float tex_size_y = (float) height * 8;
+const float x = 100.0f;
+const float y = 100.0f; // position for rendered quad on screen
+const float tex_size_x = (float) width * 8;
+const float tex_size_y = (float) height * 8;
 // vertices for a quad
-vertex_t vertices[] = {
+const vertex_t vertices[] = {
 #if 0
       // bottom right tri
       {

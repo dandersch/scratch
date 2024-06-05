@@ -4,7 +4,11 @@
 #include <GL/glew.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <SDL2/SDL.h>
+//#include <SDL2/SDL.h>
+
+typedef void *SDL_GLContext;
+struct SDL_Window;
+typedef struct SDL_Window SDL_Window ;
 
 // contains all state of the program
 typedef struct state_t

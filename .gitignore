@@ -1,3 +1,5 @@
 code.dll
 main
 code.tmp.dll
+main.exe
+*.obj
