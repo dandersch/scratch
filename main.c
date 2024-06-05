@@ -42,38 +42,15 @@ static struct Coroutine* coro = &g_coro;
 
 struct CoroutineState
 {
+    float test;
+    char array[400];
+    void* thing;
 };
 
-void func_to_yield()
-{
-    static int a = 4;
-
-    struct CoroutineState* cs = (struct CoroutineState*) coro->data;
-    if (!cs) {
-        // inital allocation
-        //cs = (struct CoroutineState*) mem_arena_alloc(frame_arena, sizeof(CoroutineState));
-        coro->data = cs;
-    } else {
-        // juggle from previous to current frame arena
-        //cs = mem_arena_alloc(frame_arena, sizeof(CoroutineState));
-        //cs = memcpy(cs, coro->data,sizeof(CoroutineState));
-        coro->data = cs;
-    }
-
-    CoroutineBegin(coro);
-    printf("Hey\n");
-    a = 5;
-
-    CoroutineWait(coro, 0.5f);
-    printf("there\n"); // will be 4 if int is not static
-
-    CoroutineReset(coro);
-}
 
 #include <stdlib.h>
 #include <assert.h>
-typedef struct arena_t
-{
+typedef struct arena_t {
     size_t size;
     size_t capacity;
     char data[];
@@ -84,7 +61,9 @@ arena_t* arena_alloc(size_t capacity) {
     arena->capacity = capacity;
     return arena;
 }
-void arena_clear(arena_t* arena) { memset(arena->data,0,arena->capacity); arena->size = 0; }
+void arena_clear(arena_t* arena) {
+    memset(arena->data,0,arena->capacity); arena->size = 0;
+}
 void* arena_push(arena_t* arena, size_t size) {
     void* buf      = NULL;
     size_t push_to = arena->size + size;
@@ -96,11 +75,52 @@ void* arena_push(arena_t* arena, size_t size) {
     assert(buf);
     return buf;
 }
+static arena_t* frame_arena;
+static arena_t* frame_arena_prev;
+
+void func_to_yield()
+{
+    /* JUGGLE */
+    // COROUTINE_JUGGLE_MEMORY(coro, coro_state_t, coro_state)
+    struct CoroutineState* cs = (struct CoroutineState*) coro->data;
+    if (!cs) {
+        // inital allocation
+        cs = (struct CoroutineState*) arena_push(frame_arena, sizeof(struct CoroutineState));
+        coro->data = cs;
+    } else {
+        // juggle from previous to current frame arena
+        cs = arena_push(frame_arena, sizeof(struct CoroutineState));
+        cs = memcpy(cs, coro->data,sizeof(struct CoroutineState));
+        coro->data = cs;
+    }
+
+    /*
+    ** NOTE: possible drawbacks of performing juggle in the coroutine:
+    ** - this only works when the coroutine is guaranteed to be called every frame
+     */
+
+    cs->test = -1.0f;
+    printf("0: Float value should be -1.0f: %f\n", cs->test);
+
+    CoroutineBegin(coro);
+    cs->test = 1.0f;
+
+    printf("1: Float value should be 1.0f: %f\n", cs->test);
+
+    CoroutineWait(coro, 0.5f);
+    cs->test = 3.0f;
+    printf("2: Float value should be 3.0f: %f\n", cs->test);
+
+    CoroutineReset(coro);
+
+    cs->test = 5.0f;
+    printf("3: Float value should be 5.0f %f\n", cs->test);
+}
 
 int main()
 {
-    arena_t* frame_arena      = arena_alloc(512);
-    arena_t* frame_arena_prev = arena_alloc(512);
+    frame_arena      = arena_alloc(512);
+    frame_arena_prev = arena_alloc(512);
 
     printf("arena buffer: %p\n", frame_arena->data);
     printf("arena prev buffer: %p\n", frame_arena_prev->data);
@@ -112,7 +132,7 @@ int main()
     for (;;)
     {
         ticks_new = stm_now();
-        if (stm_sec(stm_diff(ticks_new, ticks_old)) > 0.5)
+        if (stm_sec(stm_diff(ticks_new, ticks_old)) > 1.5)
         {
             func_to_yield();
 
