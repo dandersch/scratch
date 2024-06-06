@@ -3,7 +3,7 @@
 
 #include "meta_gen.h"
 
-META(abc_t);
+//META(abc_t);
 //meta_struct_t abc_t_type_info[] = {{OFFSET_OF(),0,"",""}};
 
 /* ------------------- usage code ---------------------------------------------------------------- */

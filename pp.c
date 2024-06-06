@@ -214,54 +214,63 @@ void introspect(tokenizer_t* tokenizer)
             {
                 while (token.type != TOKEN_TYPE_CLOSE_BRACE)
                 {
+                    printf("  X(");
+                    token = get_token(tokenizer);
+                    if (token.type == TOKEN_TYPE_IDENTIFIER)
+                    {
+                        printf("%.*s, ", token.text_len, token.text);
+                    }
+                    else { fprintf(stderr, "Expected identifier\n"); }
+
+                    if (peek_token(tokenizer).type == TOKEN_TYPE_ASTERISK)
+                    {
+                        token = get_token(tokenizer);
+                        printf("*, ");
+                    }
+                    else { printf(" , "); }
+
+                    token = get_token(tokenizer);
+                    if (token.type == TOKEN_TYPE_IDENTIFIER)
+                    {
+                        printf("%.*s, ", token.text_len, token.text);
+                    }
+                    else { fprintf(stderr, "Expected identifier\n"); }
+
+                    if (peek_token(tokenizer).type == TOKEN_TYPE_OPEN_BRACKET)
+                    {
+                        token = get_token(tokenizer);
+                        token = get_token(tokenizer);
+                        if (token.type == TOKEN_TYPE_NUMBER)
+                        {
+                            printf("[%.*s], ", token.text_len, token.text);
+                        }
+                        token = get_token(tokenizer);
+                        if (token.type != TOKEN_TYPE_OPEN_BRACKET) { fprintf(stderr, "Expected closing bracket\n"); }
+                    }
+                    else { printf(" , "); }
+
+                    token = get_token(tokenizer);
+                    if (token.type == TOKEN_TYPE_SEMICOLON)
+                    {
+                        printf("__VA_ARGS__) ");
+                    }
+                    else { fprintf(stderr, "Expected semicolon\n"); }
+
+                    if (peek_token(tokenizer).type != TOKEN_TYPE_CLOSE_BRACE) { printf("\\\n"); }
+                    else { token = get_token(tokenizer); printf("\n"); }
+
                     /* printf("  X("); */
-                    /* token = get_token(tokenizer); */
-                    /* if (require_token(tokenizer, TOKEN_TYPE_IDENTIFIER)) */
+                    /* while (token.type != TOKEN_TYPE_SEMICOLON) */
                     /* { */
-                    /*     printf("%.*s, ", token.text_len, token.text); */
-                    /* } */
-                    /* else { fprintf(stderr, "Expected identifier\n"); } */
-
-                    /* if (peek_token(tokenizer).type == TOKEN_TYPE_ASTERISK) */
-                    /* { */
-                    /*     token = get_token(tokenizer); */
-                    /*     printf("*, "); */
-                    /* } */
-                    /* else { printf(" , "); } */
-
-                    /* if (require_token(tokenizer, TOKEN_TYPE_IDENTIFIER)) */
-                    /* { */
-                    /*     printf("%.*s, ", token.text_len, token.text); */
-                    /* } */
-                    /* else { fprintf(stderr, "Expected identifier\n"); } */
-
-                    /* if (peek_token(tokenizer).type == TOKEN_TYPE_OPEN_BRACKET) */
-                    /* { */
-                    /*     token = get_token(tokenizer); */
-                    /*     if (require_token(tokenizer, TOKEN_TYPE_NUMBER)) */
-                    /*     { */
-                    /*         printf("[%.*s], ", token.text_len, token.text); */
+                    /*     if (token.type == TOKEN_TYPE_IDENTIFIER) { */
+                    /*         printf("%.*s, ", token.text_len, token.text); */
                     /*     } */
-                    /*     if (!require_token(tokenizer, TOKEN_TYPE_OPEN_BRACKET)) { fprintf(stderr, "Expected closing bracket\n"); } */
+                    /*     token = get_token(tokenizer); */
                     /* } */
-                    /* else { printf(" , "); } */
                     /* printf("__VA_ARGS__) "); */
                     /* if (peek_token(tokenizer).type != TOKEN_TYPE_CLOSE_BRACE) { printf("\\\n"); } */
                     /* else { printf("\n"); } */
                     /* token = get_token(tokenizer); */
-
-                    printf("  X(");
-                    while (token.type != TOKEN_TYPE_SEMICOLON)
-                    {
-                        if (token.type == TOKEN_TYPE_IDENTIFIER) {
-                            printf("%.*s, ", token.text_len, token.text);
-                        }
-                        token = get_token(tokenizer);
-                    }
-                    printf("__VA_ARGS__) ");
-                    if (peek_token(tokenizer).type != TOKEN_TYPE_CLOSE_BRACE) { printf("\\\n"); }
-                    else { printf("\n"); }
-                    token = get_token(tokenizer);
                 }
                 continue;
             }
@@ -284,7 +293,7 @@ void introspect(tokenizer_t* tokenizer)
         }
 
         printf("STRUCT(%.*s);\n", struct_name_len, struct_name);
-        //printf("META(%.*s)\n\n", struct_name_len, struct_name);
+        printf("META(%.*s);\n\n", struct_name_len, struct_name);
     }
     else
     {
