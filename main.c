@@ -1,5 +1,9 @@
-/* Idea: format a struct definition as an X-Macro table and use its fields to */
-/* generate a type info array... TODO */
+/*
+ * Idea: Format a struct definition as an X-Macro table and use its fields to
+ * generate a type info array. Then use this type info to handle the addition of
+ * struct members inbetween DLL hot-reloads by fixing up the memory layout given
+ * by the old and new dll.
+ */
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -17,7 +21,6 @@ static const char* DLL_FILENAME = "./code.dll";
 typedef struct state_t state_t;
 typedef memory_layout_t (*memory_layout_info_fn)();
 typedef void (*print_state_fn)(state_t*);
-
 #define MEMORY_SIZE 512
 
 /* ASSUMPTIONS */
@@ -37,7 +40,7 @@ void change_state_to_fit_new_memory_layout(void* state, memory_layout_t old, mem
 
     do
     {
-        printf("Old index: %i vs New index: %i\n", new_layout_index, old_layout_index);
+        printf("Old index: %i vs New index: %i\n", old_layout_index, new_layout_index);
         printf("Old member: %s vs New member: %s\n", old.type_info[old_layout_index].name, new.type_info[new_layout_index].name);
         if (!strcmp(old.type_info[old_layout_index].name,
                     new.type_info[new_layout_index].name)) // assumption (3)
@@ -88,12 +91,22 @@ int main()
         {
             printf("Attempting code hot reload...\n");
 
+            /* copy old layout: all data that resides in dll memory needs to be deep copied */
             memory_layout_t old_layout  = memory_layout_info();
             meta_struct_t* old_type_info = malloc(sizeof(meta_struct_t) * old_layout.member_count);
             memcpy(old_type_info, old_layout.type_info, sizeof(meta_struct_t) * old_layout.member_count);
             assert(!memcmp(old_type_info,old_layout.type_info, sizeof(meta_struct_t) * old_layout.member_count));
+            /* strings have to be deep copied as well... */
+            for (int i = 0; i < old_layout.member_count; i++)
+            {
+                size_t type_string_size = strlen(old_layout.type_info[i].type) + 1;
+                size_t name_string_size = strlen(old_layout.type_info[i].name) + 1;
+                old_type_info[i].type   = malloc(type_string_size);
+                old_type_info[i].name   = malloc(name_string_size);
+                strncpy(old_type_info[i].type, old_layout.type_info[i].type, type_string_size);
+                strncpy(old_type_info[i].name, old_layout.type_info[i].name, name_string_size);
+            }
             old_layout.type_info = old_type_info;
-
 
             if (dll_handle) {
                 print_state          = NULL;
@@ -105,12 +118,14 @@ int main()
             }
 
             /* loading of new dll */
-            usleep(50000);
-            dll_handle = dlopen(DLL_FILENAME, RTLD_NOW);
-            if (dll_handle == NULL) { printf("Opening DLL failed. Trying again...\n"); }
-            memory_layout_info = (memory_layout_info_fn) dlsym(dll_handle, "memory_layout_info");
-            print_state        = (print_state_fn) dlsym(dll_handle, "print_state");
-            if (!memory_layout_info || !print_state) { printf("Finding functions failed\n"); return 0; }
+            {
+                usleep(50000);
+                dll_handle = dlopen(DLL_FILENAME, RTLD_NOW);
+                if (dll_handle == NULL) { printf("Opening DLL failed.\n"); }
+                memory_layout_info = (memory_layout_info_fn) dlsym(dll_handle, "memory_layout_info");
+                print_state        = (print_state_fn)        dlsym(dll_handle, "print_state");
+                if (!memory_layout_info || !print_state) { printf("Finding functions failed\n"); return 1; }
+            }
 
             memory_layout_t new_layout = memory_layout_info();
 
