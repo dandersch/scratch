@@ -3,26 +3,7 @@
 
 #include "meta_gen.h"
 
-//META(abc_t);
-//meta_struct_t abc_t_type_info[] = {{OFFSET_OF(),0,"",""}};
-
 /* ------------------- usage code ---------------------------------------------------------------- */
-STRUCT(entity_t);
-META(entity_t);
-
-#define state_t(X, ...)           \
-  X(char, foo ,    , __VA_ARGS__) \
-  X(float, x,      , __VA_ARGS__) \
-  X(float, y,      , __VA_ARGS__) \
-  X(float, z,      , __VA_ARGS__) \
-  X(int,   i,      , __VA_ARGS__) \
-  X(entity_t,   e,      , __VA_ARGS__) \
-  X(double, w,     , __VA_ARGS__) \
-  X(char, baz,     , __VA_ARGS__) \
-  X(char, bar ,    , __VA_ARGS__)
-STRUCT(state_t);
-META(state_t);
-
 // Idea to improve usage code : Have a small preprocessor that outputs above
 // code for structs that are inside marker macros
 #define INTROSPECT(struct_def)
@@ -33,11 +14,38 @@ INTROSPECT(typedef struct stuff_t {
     char* c;
 } stuff_t;)
 
+STRUCT(entity_t);
+META(entity_t);
+
+// #define state_t(X, ...)           \
+//   X(char,     , foo,    , __VA_ARGS__) \
+//   X(float,    , x,      , __VA_ARGS__) \
+//   X(float,    , y,      , __VA_ARGS__) \
+//   X(float,    , z,      , __VA_ARGS__) \
+//   X(int,      , i,      , __VA_ARGS__) \
+//   X(entity_t, , e,      , __VA_ARGS__) \
+//   X(double,   , w,      , __VA_ARGS__) \
+//   X(char,     , baz,    , __VA_ARGS__) \
+//   X(char,     , bar,    , __VA_ARGS__)
+// STRUCT(state_t);
+// META(state_t);
+
+INTROSPECT(typedef struct state_t {
+  char      foo;
+  float     x;
+  float     y;
+  float     z;
+  int       i;
+  double    w;
+  char      baz;
+  char      bar;
+};)
+
 INTROSPECT(struct abc_t {
-    int a;
+    int* a;
     float b[4];
     double x;
-    char* c;
+    char* c[2];
 };)
 
 EXPORT memory_layout_t memory_layout_info()

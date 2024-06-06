@@ -31,7 +31,7 @@ void print_value_based_on_type(char* type, void* ptr_to_value)
 }
 
 /* struct definitions using X-macros */
-#define FILL_FIELDS(type,name,array, ...) type name array;
+#define FILL_FIELDS(type,ptr,name,array, ...) type ptr name array;
 #define STRUCT_NAME_START(name) typedef struct name {
 #define STRUCT_NAME_END(name)   } name
 #define STRUCT(name) STRUCT_NAME_START(name) name(FILL_FIELDS) STRUCT_NAME_END(name)
@@ -55,7 +55,7 @@ typedef struct meta_struct_t {
         print_value_based_on_type(struct_name##_type_info[i].type, (void*) (((char*) &foo) + struct_name##_type_info[i].offset)); \
     }                                                                                          \
   }
-#define META_MEMBER(b,c,d,...) { OFFSET_OF(__VA_ARGS__, c) , sizeof(b), #c, #b#d },  // NOTE workaround
+#define META_MEMBER(a,b,c,d,...) { OFFSET_OF(__VA_ARGS__, c) , sizeof(a), #c, #a#b#d },  // NOTE workaround
 #define META(name) meta_struct_t name##_type_info[] =  { name(META_MEMBER, name) }; create_print_function(name)
 
 typedef struct memory_layout_t { meta_struct_t* type_info; int member_count; } memory_layout_t;
@@ -71,6 +71,6 @@ void print_memory_layout(meta_struct_t* members, int member_count) {
 }
 
 #define entity_t(X, ...)           \
-  X(float, x,      , __VA_ARGS__) \
-  X(float, y,      , __VA_ARGS__) \
-  X(float, z,      , __VA_ARGS__)
+  X(float, , x,   , __VA_ARGS__) \
+  X(float, , y,   , __VA_ARGS__) \
+  X(float, , z,   , __VA_ARGS__)
