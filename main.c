@@ -1,35 +1,11 @@
-// idea originated from: https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html, Implementation by Andrew Harter
-
-/*
-- [x] local state
-- [ ] issue with local declartions being skipped by the case label
-- [ ] default: catch for out of sync coroutines
-
-the hot-reload / serialisation issue of out-of-sync line changes is probs a non-issue, don't pre-empt it. Focus on what's right in front of me.
-*/
-// dependency
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <string.h>
 #define SOKOL_TIME_IMPL
 #include "dep/sokol_time.h"
-typedef struct Coroutine Coroutine;
-struct Coroutine
-{
-    int line;
-    unsigned long start_time;
-    void* data;
-};
-// a coroutine always needs to be started with this
-#define CoroutineBegin(coro) switch (coro->line) {case 0: coro->line = 0;
-#define CoroutineYield(coro) do { coro->line = __LINE__; return; case __LINE__:;} while(0)
-#define CoroutineYieldUntil(coro, condition) while (!(condition)) { CoroutineYield(coro); }
-#define CoroutineWait(coro, duration) do {if (coro->start_time == 0.0f) { coro->start_time = stm_now(); } CoroutineYieldUntil(coro, stm_sec(stm_now()) > stm_sec(coro->start_time) + (double)duration); coro->start_time = 0; } while (0)
-// end a coroutine that was started by CoroutineBegin with one of these,
-// depending on whether you want the coroutine to run again
-#define CoroutineEnd(coro) do { coro->line = __LINE__; } while (0); }
-#define CoroutineReset(coro) do { coro->line = 0; } while (0); }
-#define CoroutineIsFinished(coro) (coro->line == -1) // TODO don't know what this does
 
-/* ------------------------------------------------------------------------------------------------------------------------------------------------------------ */
-
+/* - COROUTINE --------------------------------------------------------------------------------------------------------------------------------------------------- */
 typedef struct
 {
     float elapsed;                     // timer
@@ -54,17 +30,44 @@ static inline void coroutine_init(coroutine_t* co) {
 #define COROUTINE_CALL(co, ...)      co->flag = 0; case __LINE__: COROUTINE_ASSERT(co->index < COROUTINE_MAX_DEPTH); co->line[co->index++] = __LINE__; __VA_ARGS__; co->index--; do { if (co->flag) { goto __co_end; } else { case __LINE__ + COROUTINE_CASE_OFFSET: co->line[co->index] = __LINE__ + COROUTINE_CASE_OFFSET; } } while (0)
 #define COROUTINE_END(co)            } co->line[co->index] = 0; __co_end:; } while (0)
 
+#define COROUTINE_JUGGLE_STATE(coroutine, coroutine_state_t, state)                  \
+coroutine_state_t* state = (coroutine_state_t*) coroutine->data;                     \
+int our_marker = __COUNTER__;                   /* TODO only in debug */             \
+if (!state) {                                                                        \
+    state = (coroutine_state_t*) arena_push(frame_arena, sizeof(coroutine_state_t)); \
+    coroutine->data = state;                                                         \
+    coroutine_markers[our_marker].marker = 1; /* TODO only in debug */               \
+} else {                                                                             \
+    state           = arena_push(frame_arena, sizeof(coroutine_state_t));            \
+    state           = memcpy(state, coroutine->data, sizeof(coroutine_state_t));     \
+    coroutine->data = state;                                                         \
+    coroutine_markers[our_marker].marker = 1; /* TODO only in debug */               \
+}
 
+#define COROUTINE_PUSH_STATE(arena, coroutine, coroutine_state_t, state)             \
+coroutine_state_t* state = (coroutine_state_t*) coroutine->data;                     \
+if (!state) {                                                                        \
+    state = (coroutine_state_t*) arena_push(arena, sizeof(coroutine_state_t));       \
+    coroutine->data = state;                                                         \
+}
+// TODO a free-list would work better for deallocating
+#define COROUTINE_POP_STATE(arena, coroutine, coroutine_state_t, state)
+
+/* proof-of-concept of detecting stale coroutines */
+typedef struct coroutine_marker_t
+{
+    int marker;
+    int watched;
+} coroutine_marker_t;
+#define COROUTINE_MARKER_MAX 128
+static int coroutine_marker_count; // TODO unused, using __COUNTER__ for now
+static coroutine_marker_t coroutine_markers[COROUTINE_MARKER_MAX];
 
 /* ------ USAGE ----------------------------------------------------------------------------------------------------------------------------------------------- */
-//static struct Coroutine g_coro;
-//static struct Coroutine* coro = &g_coro;
 static coroutine_t g_coro;
 static coroutine_t* coro = &g_coro;
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
+/* simple memory arena api */
 typedef struct arena_t {
     size_t size;
     size_t capacity;
@@ -94,39 +97,8 @@ static arena_t* game_arena;
 static arena_t* frame_arena;
 static arena_t* frame_arena_prev;
 
-#define COROUTINE_JUGGLE_STATE(coroutine, coroutine_state_t, state)                  \
-coroutine_state_t* state = (coroutine_state_t*) coroutine->data;                     \
-int our_marker = __COUNTER__;                   /* TODO only in debug */             \
-if (!state) {                                                                        \
-    state = (coroutine_state_t*) arena_push(frame_arena, sizeof(coroutine_state_t)); \
-    coroutine->data = state;                                                         \
-    coroutine_markers[our_marker].marker = 1; /* TODO only in debug */               \
-} else {                                                                             \
-    state           = arena_push(frame_arena, sizeof(coroutine_state_t));            \
-    state           = memcpy(state, coroutine->data, sizeof(coroutine_state_t));     \
-    coroutine->data = state;                                                         \
-    coroutine_markers[our_marker].marker = 1; /* TODO only in debug */               \
-}
-
-#define COROUTINE_PUSH_STATE(arena, coroutine, coroutine_state_t, state)             \
-coroutine_state_t* state = (coroutine_state_t*) coroutine->data;                     \
-if (!state) {                                                                        \
-    state = (coroutine_state_t*) arena_push(arena, sizeof(coroutine_state_t));       \
-    coroutine->data = state;                                                         \
-}
-// TODO a free-list for work better deallocating
-#define COROUTINE_POP_STATE(arena, coroutine, coroutine_state_t, state)
-
-typedef struct coroutine_marker_t
+void func_to_yield(float dt /*NOTE unused*/)
 {
-    int marker;
-    int watched;
-} coroutine_marker_t;
-#define COROUTINE_MARKER_MAX 128
-static int coroutine_marker_count; // TODO unused, using __COUNTER__ for now
-static coroutine_marker_t coroutine_markers[COROUTINE_MARKER_MAX];
-
-void func_to_yield() {
     typedef struct coro_state_t
     {
         float test;
@@ -142,8 +114,8 @@ void func_to_yield() {
     **   corresponds to the coroutine by using the __COUNTER__ macro,
     **   (only have this in debug builds)
      */
-    //COROUTINE_JUGGLE_STATE(coro, coro_state_t, state);
-    COROUTINE_PUSH_STATE(game_arena, coro, coro_state_t, state);
+    COROUTINE_JUGGLE_STATE(coro, coro_state_t, state);
+    //COROUTINE_PUSH_STATE(game_arena, coro, coro_state_t, state);
 
     COROUTINE_START(coro);
 
@@ -166,9 +138,6 @@ int main()
     frame_arena      = arena_alloc(512);
     frame_arena_prev = arena_alloc(512);
 
-    //printf("arena buffer: %p\n", frame_arena->data);
-    //printf("arena prev buffer: %p\n", frame_arena_prev->data);
-
     stm_setup();
 
     uint64_t ticks_new = stm_now();
@@ -188,12 +157,10 @@ int main()
 
             printf("Frame counter: %lu\n", frame_counter);
             if (frame_counter != 3) // provoke a stale coroutine
-                func_to_yield();
-
-            //printf("arena cap: %zu, size: %zu, buffer: %p\n", frame_arena->capacity, frame_arena->size, frame_arena->data);
+                func_to_yield(0);
 
             /* Check coroutine_markers for stale coroutines */
-            if (0){
+            {
                 for (int i = 0; i < COROUTINE_MARKER_MAX; i++)
                 {
                     if (coroutine_markers[i].marker == 1) {
