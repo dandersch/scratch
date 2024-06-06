@@ -2,6 +2,13 @@
 #include <stdio.h>
 #include <string.h>
 
+#if !defined(_MSC_VER)
+    #define OFFSET_OF(type, member) __builtin_offsetof(type, member)
+#else
+    #define OFFSET_OF(s,m) ((size_t)&(((s*)0)->m))
+#endif
+#define EXPORT // TODO
+
 // current limitations:
 // - doesn't handle arrays and array sizes in a good way
 // - can't handle nested structures
@@ -22,9 +29,6 @@ void print_value_based_on_type(char* type, void* ptr_to_value)
     TYPES_AND_FORMATTERS(STRING_COMPARE)
     else { printf("Unknown type"); }
 }
-
-#define OFFSET_OF(type, member) __builtin_offsetof(type, member)
-#define EXPORT // TODO
 
 /* struct definitions using X-macros */
 #define FILL_FIELDS(type,name,array, ...) type name array;
@@ -48,7 +52,7 @@ typedef struct meta_struct_t {
         printf("    offset: %zu  \n",  struct_name##_type_info[i].offset );                  \
         printf("    size:   %zu  \n",  struct_name##_type_info[i].size );                    \
         printf("    type:   %s   \n",  struct_name##_type_info[i].type );                    \
-        print_value_based_on_type(struct_name##_type_info[i].type, ((void*) &foo) + struct_name##_type_info[i].offset); \
+        print_value_based_on_type(struct_name##_type_info[i].type, (void*) (((char*) &foo) + struct_name##_type_info[i].offset)); \
     }                                                                                          \
   }
 #define META_MEMBER(b,c,d,...) { OFFSET_OF(__VA_ARGS__, c) , sizeof(b), #c, #b#d },  // NOTE workaround
@@ -66,3 +70,7 @@ void print_memory_layout(meta_struct_t* members, int member_count) {
   }
 }
 
+#define entity_t(X, ...)           \
+  X(float, x,      , __VA_ARGS__) \
+  X(float, y,      , __VA_ARGS__) \
+  X(float, z,      , __VA_ARGS__)
