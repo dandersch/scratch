@@ -4,7 +4,8 @@
 /* ------------------- usage code ---------------------------------------------------------------- */
 #define state_t(X, ...)                 \
   X(char, foo ,    , __VA_ARGS__) \
-  /* X(char, baz ,    , __VA_ARGS__) */ \
+  X(char, bz,    , __VA_ARGS__) \
+  X(char, baz,    , __VA_ARGS__) \
   X(char, bar ,    , __VA_ARGS__)
 STRUCT(state_t);
 META(state_t);

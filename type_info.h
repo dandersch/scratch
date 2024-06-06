@@ -44,3 +44,14 @@ typedef struct meta_struct_t {
 #define META(name) meta_struct_t name##_type_info[] =  { name(META_MEMBER, name) }; create_print_function(name)
 
 typedef struct memory_layout_t { meta_struct_t* type_info; int member_count; } memory_layout_t;
+
+#include <stdio.h>
+void print_memory_layout(meta_struct_t* members, int member_count) {
+  printf("member count: %i \n", member_count);
+  for (int i = 0; i < member_count; i++) {
+      printf("   member %s:\n",        members[i].name);
+      printf("      offset: %zu  \n",  members[i].offset );
+      printf("      size:   %zu  \n",  members[i].size );
+      printf("      type:   %s   \n",  members[i].type );
+  }
+}
