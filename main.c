@@ -17,16 +17,10 @@ typedef struct dll_t {
     DLL_TABLE(DLL_FUNCTIONS)
 
     void* handle;
-    unsigned int id;
     time_t last_mod;
     const char* file;
 } dll_t;
 static dll_t dll;
-
-//#define MAKE_STATIC(ret,func,...) static ret (*func)(__VA_ARGS__) = NULL;
-//DLL_TABLE(MAKE_STATIC)
-
-static state_t state; // NOTE all program state lives in data section for this example
 
 #ifdef _WIN32
   #include <windows.h>
@@ -38,39 +32,38 @@ static state_t state; // NOTE all program state lives in data section for this e
   #define DLL_FILE_TMP DLL_FILENAME // no tmp dll needed
 #endif
 
-void copy_file(const char* src_filename, const char* dest_filename); /* cross-platform CopyFile() equivalent from win32 api */
-int platform_load_code() // maybe pass a dll_t
-{
-    dll.file = DLL_FILE_TMP;
+static state_t state; // NOTE all program state lives in data section for this example
 
-    if (dll.handle) /* unload old dll */
+int platform_load_code(dll_t* dll)
+{
+    dll->file = DLL_FILE_TMP;
+
+    if (dll->handle) /* unload old dll */
     {
-        #define SET_TO_NULL(ret, func, ...) dll.func = NULL;
+        #define SET_TO_NULL(ret, func, ...) dll->func = NULL;
         DLL_TABLE(SET_TO_NULL)
 
-        dll.id  = 0;
-
-        SDL_UnloadObject(dll.handle);
-        dll.handle = NULL;
+        SDL_UnloadObject(dll->handle);
+        dll->handle = NULL;
 
         /* NOTE: Linux could actually load the new dll directly without sleep */
         USE_TMP_DLL_IF_WIN32(500);
     }
 
-    dll.handle = SDL_LoadObject(dll.file);
-    if (dll.handle == NULL) { printf("Opening DLL failed. Trying again...\n"); }
-    while (dll.handle == NULL) /* NOTE keep trying to load dll */
+    dll->handle = SDL_LoadObject(dll->file);
+    if (dll->handle == NULL) { printf("Opening DLL failed. Trying again...\n"); }
+    while (dll->handle == NULL) /* NOTE keep trying to load dll */
     {
-        dll.handle = SDL_LoadObject(dll.file);
+        dll->handle = SDL_LoadObject(dll->file);
     }
 
     /* load all dll functions (and print out any not found) */
     #define LOAD_FUNCTION(ret, func, ...) \
-        dll.func = (ret (*)(__VA_ARGS__)) SDL_LoadFunction(dll.handle, #func); \
-        if (!dll.func) { printf("Error finding function: %s\n", #func); return 0; }
+        dll->func = (ret (*)(__VA_ARGS__)) SDL_LoadFunction(dll->handle, #func); \
+        if (!dll->func) { printf("Error finding function: %s\n", #func); return 0; }
     DLL_TABLE(LOAD_FUNCTION)
 
-    dll.on_reload(&state); // reload shader & "reinit" renderer
+    dll->on_reload(&state); // reload shader & "reinit" renderer
 
     return 1;
 }
@@ -97,11 +90,10 @@ int main(int argc, char* args[])
     #endif
 
     // initial loading of dll
-    int code_loaded = platform_load_code();
+    int code_loaded = platform_load_code(&dll);
     if (!code_loaded) { exit(-1); }
     struct stat attr;
     stat(DLL_FILENAME, &attr);
-    dll.id = attr.st_ino;
     dll.last_mod = attr.st_mtime;
 
     dll.on_load(&state);
@@ -115,12 +107,11 @@ int main(int argc, char* args[])
         if ((stat(DLL_FILENAME, &attr) == 0) && (dll.last_mod != attr.st_mtime))
         {
             printf("Attempting code hot reload...\n");
-            platform_load_code();
-            dll.id       = attr.st_ino;
+            platform_load_code(&dll);
             dll.last_mod = attr.st_mtime;
         }
 
-        // event handling
+        /* event handling */
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 running = 0;

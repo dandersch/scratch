@@ -1,12 +1,10 @@
 #include "common.h"
 
 #define SHADER_STRINGIFY(x) "#version 330\n" #x
-
 #define VERT_SHADER
 const char* vertex_shader_source =
       #include "shader.glsl"
     ;
-
 #define FRAG_SHADER
 const char* fragment_shader_source =
       #include "shader.glsl"
@@ -56,35 +54,6 @@ const float tex_size_x = (float) width * 8;
 const float tex_size_y = (float) height * 8;
 // vertices for a quad
 const vertex_t vertices[] = {
-#if 0
-      // bottom right tri
-      {
-         -0.5f, -0.5f, 0.0f, // bottom left
-          0.0f,  0.0f,       // uv
-      },
-      {
-          0.5f, -0.5f, 0.0f, // bottom right
-          1.0f,  0.0f,       // uv
-      },
-      {
-         0.5f,  0.5f, 0.0f, // top right
-         1.0f,  1.0f,       // uv
-      },
-
-     // upper left tri
-     {
-        0.5f,  0.5f, 0.0f, // top right
-        1.0f,  1.0f,       // uv
-     },
-     {
-       -0.5f,  0.5f, 0.0f, // top left
-        0.0f,  1.0f,       // uv
-     },
-     {
-       -0.5f, -0.5f, 0.0f, // bottom left
-        0.0f,  0.0f,       // uv
-     }
-#else
      // bottom right tri
      {
          x,        y,        0.0f, // bottom left
@@ -112,12 +81,10 @@ const vertex_t vertices[] = {
         x,        y,        0.0f, // bottom left
         0.0f,     0.0f,           // uv
      }
-#endif
 };
 
-// helper function
-GLuint compile_shader(GLenum type, const char* source)
-{
+/* helper function */
+GLuint compile_shader(GLenum type, const char* source) {
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, NULL);
     glCompileShader(shader);
@@ -127,30 +94,29 @@ GLuint compile_shader(GLenum type, const char* source)
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
         glGetShaderInfoLog(shader, 512, NULL, infoLog);
-        fprintf(stderr, "ERROR::SHADER::COMPILATION_FAILED\n%s\n", infoLog);
+        fprintf(stderr, "Shader Compilation failed: %s\n", infoLog);
         return 0;
     }
-    return shader; // NOTE unused
+    return shader;
 }
 
-GLuint create_shader_program(state_t* state)
-{
+GLuint create_shader_program() {
     GLuint vertex_shader = compile_shader(GL_VERTEX_SHADER, vertex_shader_source);
     GLuint fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fragment_shader_source);
 
     if (!vertex_shader)   { return 0; }
     if (!fragment_shader) { return 0; }
 
-    state->shader_program = glCreateProgram();
-    glAttachShader(state->shader_program, vertex_shader);
-    glAttachShader(state->shader_program, fragment_shader);
-    glLinkProgram(state->shader_program);
+    GLuint shader_program = glCreateProgram();
+    glAttachShader(shader_program, vertex_shader);
+    glAttachShader(shader_program, fragment_shader);
+    glLinkProgram(shader_program);
 
     GLint success;
     GLchar infoLog[512];
-    glGetProgramiv(state->shader_program, GL_LINK_STATUS, &success);
+    glGetProgramiv(shader_program, GL_LINK_STATUS, &success);
     if (!success) {
-        glGetProgramInfoLog(state->shader_program, 512, NULL, infoLog);
+        glGetProgramInfoLog(shader_program, 512, NULL, infoLog);
         fprintf(stderr, "ERROR::PROGRAM::LINKING_FAILED\n%s\n", infoLog);
         exit(EXIT_FAILURE);
     }
@@ -173,8 +139,8 @@ GLuint create_shader_program(state_t* state)
     };
 
     /* upload uniforms */
-    glUseProgram(state->shader_program); // NOTE: must be called before uploading uniform
-    int orthoLocation = glGetUniformLocation(state->shader_program, "orthoProjection");
+    glUseProgram(shader_program); // NOTE: must be called before uploading uniform
+    int orthoLocation = glGetUniformLocation(shader_program, "orthoProjection");
     if (orthoLocation == -1) { printf("Uniform not found\n"); }
     glUniformMatrix4fv(orthoLocation, 1, GL_FALSE, orthoProjection);
 
@@ -184,19 +150,18 @@ GLuint create_shader_program(state_t* state)
         0.0f, 0.0f, 1.0f, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f,
     };
-    int view_matrix_uniform_location = glGetUniformLocation(state->shader_program, "view_matrix");
+    int view_matrix_uniform_location = glGetUniformLocation(shader_program, "view_matrix");
     if (view_matrix_uniform_location == -1) { printf("Uniform not found\n"); }
     glUniformMatrix4fv(view_matrix_uniform_location, 1, GL_FALSE, view_matrix);
 
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
 
-    return state->shader_program;
+    return shader_program;
 }
 
 static float time = 0; /* use for lack of a dt for now */
-EXPORT void render(state_t* state)
-{
+EXPORT void render(state_t* state) {
     glClear(GL_COLOR_BUFFER_BIT);
     glClearColor(0.1f, 0.2f, 0.1f, 0.2f);
     glUseProgram(state->shader_program);
@@ -206,8 +171,7 @@ EXPORT void render(state_t* state)
     glBindVertexArray(0);
 }
 
-int init_renderer(state_t* state)
-{
+int init_renderer(state_t* state) {
     /* generate and bind vertex array object and vertex buffer object */
     glGenVertexArrays(1, &state->VAO);
     glGenBuffers(1, &state->VBO);
@@ -269,17 +233,15 @@ int init_renderer(state_t* state)
     return 0;
 }
 
-EXPORT int on_reload(state_t* state)
-{
+EXPORT int on_reload(state_t* state) {
     printf("Hello from new DLL\n");
-    create_shader_program(state);
+    state->shader_program = create_shader_program();
     init_renderer(state);
     return 1;
 }
 
-EXPORT int on_load(state_t* state)
-{
+EXPORT int on_load(state_t* state) {
     init_renderer(state);
-    create_shader_program(state);
+    state->shader_program = create_shader_program();
     return 1;
 }
