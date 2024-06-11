@@ -10,6 +10,11 @@ const char* fragment_shader_source =
       #include "shader.glsl"
     ;
 
+#define SHADERS(X) \
+    X(shader1, vertex_shader_source, fragment_shader_source ) \
+    X(shader2, vertex_shader_source, fragment_shader_source )
+
+
 // loading a texture based of a char array
 typedef struct char_to_color_t { char character; unsigned char color[4]; } char_to_color_t;
 char_to_color_t char_to_color_map[] = {
@@ -104,9 +109,51 @@ GLuint compile_shader(GLenum type, const char* source) {
     return shader;
 }
 
-GLuint create_shader_program() {
-    GLuint vertex_shader = compile_shader(GL_VERTEX_SHADER, vertex_shader_source);
-    GLuint fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fragment_shader_source);
+GLuint upload_uniforms(GLuint shader) {
+    GLuint success = 1;
+
+    /* orthographic projection */
+    glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT); // NOTE hardcoded
+
+    float left   = 0.0f;
+    float right  = (float) SCREEN_WIDTH;
+    float bottom = 0.0f;
+    float top    = (float) SCREEN_HEIGHT;
+    float near   = -1.0f;
+    float far    = 1.0f;
+
+    float orthoProjection[16] = {
+        2.0f / (right - left),                                        0.0f,                         0.0f, 0.0f,
+        0.0f,                                        2.0f / (top - bottom),                         0.0f, 0.0f,
+        0.0f,                                                         0.0f,         -2.0f / (far - near), 0.0f,
+        -(right + left) / (right - left), -(top + bottom) / (top - bottom), -(far + near) / (far - near), 1.0f
+    };
+
+    /* upload uniforms */
+    glUseProgram(shader); // NOTE: must be called before uploading uniform
+    int orthoLocation = glGetUniformLocation(shader, "orthoProjection");
+    if (orthoLocation == -1) { success = 0; printf("Uniform not found\n"); }
+    glUniformMatrix4fv(orthoLocation, 1, GL_FALSE, orthoProjection);
+
+    float view_matrix[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f,
+    };
+    int view_matrix_uniform_location = glGetUniformLocation(shader, "view_matrix");
+    if (view_matrix_uniform_location == -1) { success = 0; printf("Uniform not found\n"); }
+    glUniformMatrix4fv(view_matrix_uniform_location, 1, GL_FALSE, view_matrix);
+
+    static float time = 0; /* use for lack of a dt for now */
+    glUniform1f(glGetUniformLocation(shader, "time"), time++);
+
+    return success;
+}
+
+GLuint create_shader_program(const char* vertex_src, const char* frag_src) {
+    GLuint vertex_shader   = compile_shader(GL_VERTEX_SHADER, vertex_src);
+    GLuint fragment_shader = compile_shader(GL_FRAGMENT_SHADER, frag_src);
 
     if (!vertex_shader)   { return 0; }
     if (!fragment_shader) { return 0; }
@@ -125,51 +172,19 @@ GLuint create_shader_program() {
         exit(EXIT_FAILURE);
     }
 
-    // orthographic projection
-    glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT); // NOTE hardcoded
-
-    float left   = 0.0f;
-    float right  = (float) SCREEN_WIDTH;
-    float bottom = 0.0f;
-    float top    = (float) SCREEN_HEIGHT;
-    float near   = -1.0f;
-    float far    = 1.0f;
-
-    float orthoProjection[16] = {
-        2.0f / (right - left), 0.0f, 0.0f, 0.0f,
-        0.0f, 2.0f / (top - bottom), 0.0f, 0.0f,
-        0.0f, 0.0f, -2.0f / (far - near), 0.0f,
-        -(right + left) / (right - left), -(top + bottom) / (top - bottom), -(far + near) / (far - near), 1.0f
-    };
-
-    /* upload uniforms */
-    glUseProgram(shader_program); // NOTE: must be called before uploading uniform
-    int orthoLocation = glGetUniformLocation(shader_program, "orthoProjection");
-    if (orthoLocation == -1) { printf("Uniform not found\n"); }
-    glUniformMatrix4fv(orthoLocation, 1, GL_FALSE, orthoProjection);
-
-    float view_matrix[16] = {
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f,
-    };
-    int view_matrix_uniform_location = glGetUniformLocation(shader_program, "view_matrix");
-    if (view_matrix_uniform_location == -1) { printf("Uniform not found\n"); }
-    glUniformMatrix4fv(view_matrix_uniform_location, 1, GL_FALSE, view_matrix);
-
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
 
     return shader_program;
 }
 
-static float time = 0; /* use for lack of a dt for now */
 EXPORT void render(state_t* state) {
     glClear(GL_COLOR_BUFFER_BIT);
     glClearColor(0.1f, 0.2f, 0.1f, 0.2f);
+
     glUseProgram(state->shader_program);
-    glUniform1f(glGetUniformLocation(state->shader_program, "time"), time++);
+    upload_uniforms(state->shader_program);
+
     glBindVertexArray(state->VAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
@@ -242,15 +257,18 @@ void generate_texture_and_upload() {
 }
 
 EXPORT int on_reload(state_t* state) {
-    printf("Hello from new DLL\n");
-    state->shader_program = create_shader_program();
+
+    state->shader_program = create_shader_program(vertex_shader_source, fragment_shader_source);
+
     generate_texture_and_upload();
     return 1;
 }
 
 EXPORT int on_load(state_t* state) {
+    //(*state) = malloc(sizeof(state_t));
+
     init_renderer(state);
-    state->shader_program = create_shader_program();
-    generate_texture_and_upload();
+
+    on_reload(state);
     return 1;
 }

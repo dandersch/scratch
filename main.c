@@ -8,8 +8,8 @@
 
 #define DLL_FILENAME "./code.dll"
 #define DLL_TABLE(X)              \
-    X(void, render,    state_t*)  \
     X(int,  on_load,   state_t*)  \
+    X(void, render,    state_t*)   \
     X(int,  on_reload, state_t*)
 
 typedef struct dll_t {
@@ -33,6 +33,9 @@ static dll_t dll;
 #endif
 
 static state_t state; // NOTE all program state lives in data section for this example
+//static state_t* state; // allocated by dll
+static SDL_GLContext context;
+static SDL_Window* window;
 
 int platform_load_code(dll_t* dll)
 {
@@ -76,10 +79,10 @@ int main(int argc, char* args[])
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-        state.window = SDL_CreateWindow("OpenGL Window", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
-        if (!state.window) { fprintf(stderr, "Failed to create SDL window: %s\n", SDL_GetError()); return -1; }
-        state.context = SDL_GL_CreateContext(state.window); // opengl context
-        if (!state.context) { fprintf(stderr, "Failed to create OpenGL context: %s\n", SDL_GetError()); return -1; }
+        window = SDL_CreateWindow("OpenGL Window", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+        if (!window) { fprintf(stderr, "Failed to create SDL window: %s\n", SDL_GetError()); return -1; }
+        context = SDL_GL_CreateContext(window); // opengl context
+        if (!context) { fprintf(stderr, "Failed to create OpenGL context: %s\n", SDL_GetError()); return -1; }
 
         // Initialize GLEW
         glewExperimental = GL_TRUE;
@@ -121,7 +124,7 @@ int main(int argc, char* args[])
 
         dll.render(&state);
 
-        SDL_GL_SwapWindow(state.window);
+        SDL_GL_SwapWindow(window);
     }
 
     return 0;

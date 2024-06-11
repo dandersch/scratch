@@ -14,8 +14,7 @@ typedef struct SDL_Window SDL_Window ;
 typedef struct state_t
 {
     GLuint VAO, VBO, shader_program;
-    SDL_GLContext context;
-    SDL_Window* window;
+
 } state_t;
 
 #define SCREEN_WIDTH  300
