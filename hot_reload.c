@@ -10,14 +10,30 @@ const char* fragment_shader_source =
       #include "shader.glsl"
     ;
 
+#define VERT_SHADER
+const char* vertex_shader2_source =
+      #include "shader2.glsl"
+    ;
+#define FRAG_SHADER
+const char* fragment_shader2_source =
+      #include "shader2.glsl"
+    ;
+
 #define SHADERS(X) \
-    X(shader1, vertex_shader_source, fragment_shader_source ) \
-    X(shader2, vertex_shader_source, fragment_shader_source )
+    X(0, vertex_shader_source, fragment_shader_source ) \
+    X(1, vertex_shader2_source, fragment_shader2_source )
 
 /* contains all state of the program */
 typedef struct state_t {
     GLuint VAO, VBO;
 
+    #define COUNT_SHADERS(a,...) ___##a,
+    enum {
+        SHADERS(COUNT_SHADERS)
+        SHADER_COUNT
+    };
+    GLuint shaders[SHADER_COUNT];
+    int current_shader;
 
 } state_t;
 
@@ -187,8 +203,8 @@ EXPORT void render(state_t* state) {
     glClear(GL_COLOR_BUFFER_BIT);
     glClearColor(0.1f, 0.2f, 0.1f, 0.2f);
 
-    glUseProgram(state->shader_program);
-    upload_uniforms(state->shader_program);
+    glUseProgram(state->shaders[state->current_shader]);
+    upload_uniforms(state->shaders[state->current_shader]);
 
     glBindVertexArray(state->VAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -263,7 +279,8 @@ void generate_texture_and_upload() {
 
 EXPORT int on_reload(state_t* state) {
 
-    state->shader_program = create_shader_program(vertex_shader_source, fragment_shader_source);
+    #define CREATE_SHADER(idx,vert_src,frag_src) state->shaders[idx] = create_shader_program(vert_src, frag_src);
+    SHADERS(CREATE_SHADER)
 
     generate_texture_and_upload();
     return 1;
@@ -275,6 +292,15 @@ EXPORT int on_load(state_t** state) {
     init_renderer(*state);
     on_reload(*state);
 
-    on_reload(state);
+    (*state)->current_shader = 0;
+
     return 1;
+}
+
+EXPORT void mouse_click(state_t* state)
+{
+    state->current_shader++;
+    if (state->current_shader >= SHADER_COUNT) { state->current_shader = 0; }
+
+    printf("Using shader: %i\n", state->current_shader);
 }

@@ -14,6 +14,7 @@ typedef struct state_t state_t;
     X(int,  on_load,   state_t**)  \
     X(void, render,    state_t*)   \
     X(int,  on_reload, state_t*)   \
+    X(void, mouse_click, state_t*) // TODO generalize
 
 typedef struct dll_t {
     #define DLL_FUNCTIONS(ret,func,...) ret (*func)(__VA_ARGS__);
@@ -119,8 +120,10 @@ int main(int argc, char* args[])
 
         /* event handling */
         while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                running = 0;
+            switch (event.type)
+            {
+                case SDL_QUIT: { running = 0; } break;
+                case SDL_MOUSEBUTTONDOWN: { dll.mouse_click(state); } break;
             }
         }
 
