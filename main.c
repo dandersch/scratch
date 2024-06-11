@@ -3,8 +3,7 @@
 #include <SDL2/SDL.h>
 
 /* HOT RELOAD */
-#include <sys/stat.h> // for checking if dll changed on disk
-//#include <dlfcn.h>    // for opening shared objects (requires linking with -ldl)
+#include <sys/stat.h>         // for checking if dll changed on disk
 #include <SDL2/SDL_loadso.h>  // cross platform dll loading
 static void* dll_handle = NULL;
 
@@ -16,10 +15,14 @@ static const char* DLL_FILENAME = "./code.dll";
 
 static unsigned int dll_id;
 static time_t dll_last_mod;
-static void (*hello)(state_t*) = NULL;
-static void (*render)(state_t*) = NULL;
-static void (*create_shader_program)(state_t*) = NULL;
-static void (*init_renderer)(state_t*) = NULL;
+#define DLL_FILENAME "./code.dll"
+#define DLL_TABLE(X)                            \
+    X(void, hello)                              \
+    X(void, render, state_t*)                   \
+    X(void, create_shader_program, state_t*)    \
+    X(int,  init_renderer, state_t*)
+#define MAKE_STATIC(ret,func,...) static ret (*func)(__VA_ARGS__) = NULL;
+DLL_TABLE(MAKE_STATIC)
 
 static state_t state; // NOTE all program state lives in data section for this example
 
@@ -34,13 +37,11 @@ int platform_load_code()
     // unload old dll
     if (dll_handle)
     {
-        hello                 = NULL;
-        render                = NULL;
-        create_shader_program = NULL;
-        init_renderer         = NULL;
+        #define SET_TO_NULL(ret, func, ...) func = NULL;
+        DLL_TABLE(SET_TO_NULL)
+
         dll_id                = 0;
 
-        //if (dlclose(dll_handle) != 0) { printf("Failed to close DLL\n"); }
         SDL_UnloadObject(dll_handle);
         dll_handle = NULL;
 
@@ -61,19 +62,13 @@ int platform_load_code()
         /* dll_handle = dlopen(dll_file, RTLD_NOW); */
     }
 
-    //render = (void (*)(state_t*)) dlsym(dll_handle, "render");
-    render = (void (*)(state_t*)) SDL_LoadFunction(dll_handle, "render");
-    if (!render) { printf("Finding render function failed\n"); return 0; }
+    /* load all dll functions (and print out any not found) */
+    #define LOAD_FUNCTION(ret, func, ...) \
+        func = (ret (*)(__VA_ARGS__)) SDL_LoadFunction(dll_handle, #func); \
+        if (!func) { printf("Error finding function: %s\n", #func); return 0; }
+    DLL_TABLE(LOAD_FUNCTION)
 
-    //create_shader_program = (void (*)(state_t*)) dlsym(dll_handle, "create_shader_program");
-    //init_renderer         = (void (*)(state_t*)) dlsym(dll_handle, "init_renderer");
-    //hello                 = (void (*)(state_t*)) dlsym(dll_handle, "hello");
-    create_shader_program = (void (*)(state_t*)) SDL_LoadFunction(dll_handle, "create_shader_program");
-    init_renderer         = (void (*)(state_t*)) SDL_LoadFunction(dll_handle, "init_renderer");
-    hello                 = (void (*)(state_t*)) SDL_LoadFunction(dll_handle, "hello");
-
-    hello(&state); // test calling dll function
-
+    hello(); // test calling dll function
     // reload shader & "reinit" renderer
     init_renderer(&state);
     create_shader_program(&state);
