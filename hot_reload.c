@@ -35,6 +35,9 @@ typedef struct state_t {
     GLuint shaders[SHADER_COUNT];
     int current_shader;
 
+    float cam_x, cam_y;
+    float zoom;
+    int mouse_wheel;
 } state_t;
 
 // loading a texture based of a char array
@@ -130,7 +133,7 @@ GLuint compile_shader(GLenum type, const char* source) {
     return shader;
 }
 
-GLuint upload_uniforms(GLuint shader) {
+GLuint upload_uniforms(GLuint shader, float cam_pos_x, float cam_pos_y, float zoom) {
     GLuint success = 1;
 
     /* orthographic projection */
@@ -142,6 +145,11 @@ GLuint upload_uniforms(GLuint shader) {
     float top    = (float) SCREEN_HEIGHT;
     float near   = -1.0f;
     float far    = 1.0f;
+
+    left *= zoom;
+    right *= zoom;
+    bottom *= zoom;
+    top *= zoom;
 
     float orthoProjection[16] = {
         2.0f / (right - left),                                        0.0f,                         0.0f, 0.0f,
@@ -157,10 +165,10 @@ GLuint upload_uniforms(GLuint shader) {
     glUniformMatrix4fv(orthoLocation, 1, GL_FALSE, orthoProjection);
 
     float view_matrix[16] = {
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f,
+        1.0f,  0.0f, 0.0f, 0.0f,
+        0.0f,  1.0f, 0.0f, 0.0f,
+        0.0f,  0.0f, 1.0f, 0.0f,
+      -cam_pos_x,-cam_pos_y, 0.0f, 1.0f,
     };
     int view_matrix_uniform_location = glGetUniformLocation(shader, "view_matrix");
     if (view_matrix_uniform_location == -1) { success = 0; printf("Uniform view_matrix not found\n"); }
@@ -204,7 +212,7 @@ EXPORT void render(state_t* state) {
     glClearColor(0.1f, 0.2f, 0.1f, 0.2f);
 
     glUseProgram(state->shaders[state->current_shader]);
-    upload_uniforms(state->shaders[state->current_shader]);
+    upload_uniforms(state->shaders[state->current_shader], state->cam_x, state->cam_y, state->zoom);
 
     glBindVertexArray(state->VAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -297,10 +305,19 @@ EXPORT int on_load(state_t** state) {
     return 1;
 }
 
-EXPORT void mouse_click(state_t* state)
-{
+EXPORT void update(state_t* state, float pos_x, float pos_y, int mouse_wheel) {
+    state->cam_x = pos_x;
+    state->cam_y = pos_y;
+    state->mouse_wheel = mouse_wheel;
+    state->zoom -= (mouse_wheel * 0.1);
+}
+
+EXPORT void mouse_click(state_t* state, int x, int y) {
     state->current_shader++;
     if (state->current_shader >= SHADER_COUNT) { state->current_shader = 0; }
 
     printf("Using shader: %i\n", state->current_shader);
+    printf("Cam: %f %f\n", state->cam_x, state->cam_y);
+    printf("Mouse at: %i %i\n", x, y);
+    printf("Wheel at: %i\n", state->mouse_wheel);
 }

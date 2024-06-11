@@ -14,7 +14,8 @@ typedef struct state_t state_t;
     X(int,  on_load,   state_t**)  \
     X(void, render,    state_t*)   \
     X(int,  on_reload, state_t*)   \
-    X(void, mouse_click, state_t*) // TODO generalize
+    X(void, update, state_t*, float, float, int) \
+    X(void, mouse_click, state_t*, int, int) // TODO generalize
 
 typedef struct dll_t {
     #define DLL_FUNCTIONS(ret,func,...) ret (*func)(__VA_ARGS__);
@@ -107,6 +108,8 @@ int main(int argc, char* args[])
 
     int running = 1;
     SDL_Event event;
+    int mouse_x, mouse_y;
+    float pos_x = 0, pos_y = 0;
     while (running)
     {
         /* check if dll has changed on disk */
@@ -119,14 +122,49 @@ int main(int argc, char* args[])
         }
 
         /* event handling */
+        int mouse_wheel = 0;
         while (SDL_PollEvent(&event)) {
             switch (event.type)
             {
                 case SDL_QUIT: { running = 0; } break;
-                case SDL_MOUSEBUTTONDOWN: { dll.mouse_click(state); } break;
+                case SDL_MOUSEMOTION:
+                {
+                    mouse_x = event.motion.x;
+                    mouse_y = event.motion.y;
+                } break;
+                case SDL_MOUSEBUTTONDOWN: {
+                    dll.mouse_click(state, mouse_x, mouse_y);
+                } break;
+
+                case SDL_MOUSEWHEEL:
+                {
+                    mouse_wheel = event.wheel.y;
+                } break;
+
+                case SDL_KEYDOWN:
+                {
+                    SDL_Keycode keycode = event.key.keysym.sym;
+                    int is_down         = (event.key.state == SDL_PRESSED);
+
+                    if(event.key.repeat == 0)
+                    {
+                        if (is_down)
+                        {
+                            if((keycode >= SDLK_F1) && (keycode <= SDLK_F12)) {}
+                            if (keycode == SDLK_SPACE) { dll.mouse_click(state, mouse_x, mouse_y); }
+
+                            if (keycode == SDLK_UP)    { pos_y += 10; }
+                            if (keycode == SDLK_DOWN)  { pos_y -= 10; }
+                            if (keycode == SDLK_LEFT)  { pos_x -= 10; }
+                            if (keycode == SDLK_RIGHT) { pos_x += 10; }
+                        }
+                    }
+
+
+                } break;
             }
         }
-
+        dll.update(state,pos_x,pos_y,mouse_wheel);
         dll.render(state);
 
         SDL_GL_SwapWindow(window);
