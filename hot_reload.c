@@ -14,6 +14,12 @@ const char* fragment_shader_source =
     X(shader1, vertex_shader_source, fragment_shader_source ) \
     X(shader2, vertex_shader_source, fragment_shader_source )
 
+/* contains all state of the program */
+typedef struct state_t {
+    GLuint VAO, VBO;
+
+
+} state_t;
 
 // loading a texture based of a char array
 typedef struct char_to_color_t { char character; unsigned char color[4]; } char_to_color_t;
@@ -51,7 +57,6 @@ typedef struct vertex_t
 {
     float vert_x, vert_y, vert_z;
     float tex_x,  tex_y;
-    float a;
 } vertex_t;
 #define VERTEX_LAYOUT(X) \
    X(0, 3, vert_x)       \
@@ -132,7 +137,7 @@ GLuint upload_uniforms(GLuint shader) {
     /* upload uniforms */
     glUseProgram(shader); // NOTE: must be called before uploading uniform
     int orthoLocation = glGetUniformLocation(shader, "orthoProjection");
-    if (orthoLocation == -1) { success = 0; printf("Uniform not found\n"); }
+    if (orthoLocation == -1) { success = 0; printf("Uniform orthoProjection not found\n"); }
     glUniformMatrix4fv(orthoLocation, 1, GL_FALSE, orthoProjection);
 
     float view_matrix[16] = {
@@ -142,7 +147,7 @@ GLuint upload_uniforms(GLuint shader) {
         0.0f, 0.0f, 0.0f, 1.0f,
     };
     int view_matrix_uniform_location = glGetUniformLocation(shader, "view_matrix");
-    if (view_matrix_uniform_location == -1) { success = 0; printf("Uniform not found\n"); }
+    if (view_matrix_uniform_location == -1) { success = 0; printf("Uniform view_matrix not found\n"); }
     glUniformMatrix4fv(view_matrix_uniform_location, 1, GL_FALSE, view_matrix);
 
     static float time = 0; /* use for lack of a dt for now */
@@ -264,10 +269,11 @@ EXPORT int on_reload(state_t* state) {
     return 1;
 }
 
-EXPORT int on_load(state_t* state) {
-    //(*state) = malloc(sizeof(state_t));
+EXPORT int on_load(state_t** state) {
+    (*state) = malloc(sizeof(state_t));
 
-    init_renderer(state);
+    init_renderer(*state);
+    on_reload(*state);
 
     on_reload(state);
     return 1;

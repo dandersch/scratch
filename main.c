@@ -2,15 +2,18 @@
 
 #include <SDL2/SDL.h>
 
+/* forward declarations */
+typedef struct state_t state_t;
+
 /* HOT RELOAD */
 #include <sys/stat.h>         // for checking if dll changed on disk
 #include <SDL2/SDL_loadso.h>  // cross platform dll loading
 
 #define DLL_FILENAME "./code.dll"
-#define DLL_TABLE(X)              \
-    X(int,  on_load,   state_t*)  \
+#define DLL_TABLE(X)               \
+    X(int,  on_load,   state_t**)  \
     X(void, render,    state_t*)   \
-    X(int,  on_reload, state_t*)
+    X(int,  on_reload, state_t*)   \
 
 typedef struct dll_t {
     #define DLL_FUNCTIONS(ret,func,...) ret (*func)(__VA_ARGS__);
@@ -32,8 +35,8 @@ static dll_t dll;
   #define DLL_FILE_TMP DLL_FILENAME // no tmp dll needed
 #endif
 
-static state_t state; // NOTE all program state lives in data section for this example
-//static state_t* state; // allocated by dll
+//static state_t state; // NOTE all program state lives in data section for this example
+static state_t* state; // allocated by dll
 static SDL_GLContext context;
 static SDL_Window* window;
 
@@ -121,7 +124,7 @@ int main(int argc, char* args[])
             }
         }
 
-        dll.render(&state);
+        dll.render(state);
 
         SDL_GL_SwapWindow(window);
     }
