@@ -146,6 +146,7 @@ GLuint upload_uniforms(GLuint shader, float cam_pos_x, float cam_pos_y, float zo
     float near   = -1.0f;
     float far    = 1.0f;
 
+    //zoom = 0.8f;
     left *= zoom;
     right *= zoom;
     bottom *= zoom;
@@ -173,6 +174,10 @@ GLuint upload_uniforms(GLuint shader, float cam_pos_x, float cam_pos_y, float zo
     int view_matrix_uniform_location = glGetUniformLocation(shader, "view_matrix");
     if (view_matrix_uniform_location == -1) { success = 0; printf("Uniform view_matrix not found\n"); }
     glUniformMatrix4fv(view_matrix_uniform_location, 1, GL_FALSE, view_matrix);
+
+    int zoom_loc = glGetUniformLocation(shader, "zoom");
+    if (zoom_loc == -1) { success = 0; printf("Uniform zoom not found\n"); }
+    glUniform1f(zoom_loc, zoom);
 
     static float time = 0; /* use for lack of a dt for now */
     glUniform1f(glGetUniformLocation(shader, "time"), time++);
