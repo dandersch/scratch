@@ -1,0 +1,5 @@
+#+title: Hot-Reloadable, Embedded Shader
+
+A showcase of embedding shader source code into an executable using ~#include~ and
+leveraging DLL-based code hot-reloading to enable hot-reloading of included
+shaders.
