@@ -46,8 +46,7 @@ int platform_load_code(dll_t* dll)
         SDL_UnloadObject(dll->handle);
         dll->handle = NULL;
 
-        /* NOTE: Linux could actually load the new dll directly without sleep */
-        USE_TMP_DLL_IF_WIN32(500);
+        USE_TMP_DLL_IF_WIN32(500); /* NOTE: Linux can load new dll directly */
     }
 
     dll->handle = SDL_LoadObject(dll->file);
@@ -70,19 +69,22 @@ int platform_load_code(dll_t* dll)
 
 int main(int argc, char* args[])
 {
-    /* sdl initialization boilerplate */
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) { fprintf(stderr, "Failed to initialize SDL: %s\n", SDL_GetError()); return -1; }
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    state.window = SDL_CreateWindow("OpenGL Window", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
-    if (!state.window) { fprintf(stderr, "Failed to create SDL window: %s\n", SDL_GetError()); return -1; }
-    state.context = SDL_GL_CreateContext(state.window); // opengl context
-    if (!state.context) { fprintf(stderr, "Failed to create OpenGL context: %s\n", SDL_GetError()); return -1; }
+    /* init */
+    {
+        /* sdl initialization boilerplate */
+        if (SDL_Init(SDL_INIT_VIDEO) < 0) { fprintf(stderr, "Failed to initialize SDL: %s\n", SDL_GetError()); return -1; }
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+        state.window = SDL_CreateWindow("OpenGL Window", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+        if (!state.window) { fprintf(stderr, "Failed to create SDL window: %s\n", SDL_GetError()); return -1; }
+        state.context = SDL_GL_CreateContext(state.window); // opengl context
+        if (!state.context) { fprintf(stderr, "Failed to create OpenGL context: %s\n", SDL_GetError()); return -1; }
 
-    // Initialize GLEW
-    glewExperimental = GL_TRUE;
-    if (glewInit() != GLEW_OK) { fprintf(stderr, "Failed to initialize GLEW\n"); return -1; }
+        // Initialize GLEW
+        glewExperimental = GL_TRUE;
+        if (glewInit() != GLEW_OK) { fprintf(stderr, "Failed to initialize GLEW\n"); return -1; }
+    }
 
     #ifdef _WIN32
       CopyFile(DLL_FILENAME, DLL_FILE_TMP, 0);
@@ -91,14 +93,13 @@ int main(int argc, char* args[])
 
     // initial loading of dll
     int code_loaded = platform_load_code(&dll);
-    if (!code_loaded) { exit(-1); }
+    if (!code_loaded) { fprintf(stderr, "Couldn't load dll\n"); exit(-1); }
     struct stat attr;
     stat(DLL_FILENAME, &attr);
     dll.last_mod = attr.st_mtime;
 
     dll.on_load(&state);
 
-    // Main loop
     int running = 1;
     SDL_Event event;
     while (running)

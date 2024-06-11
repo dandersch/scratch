@@ -46,7 +46,11 @@ typedef struct vertex_t
 {
     float vert_x, vert_y, vert_z;
     float tex_x,  tex_y;
+    float a;
 } vertex_t;
+#define VERTEX_LAYOUT(X) \
+   X(0, 3, vert_x)       \
+   X(1, 2, tex_x)
 
 const float x = 100.0f;
 const float y = 100.0f; // position for rendered quad on screen
@@ -178,17 +182,22 @@ int init_renderer(state_t* state) {
 
     glBindVertexArray(state->VAO);
 
+    /* upload vertices */
     glBindBuffer(GL_ARRAY_BUFFER, state->VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex_t), (void*) offsetof(vertex_t, vert_x));
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(vertex_t), (void*) offsetof(vertex_t, tex_x));
-    glEnableVertexAttribArray(1);
+    #define FILL_ATTRIB_POINTER(index, count, member) \
+        glVertexAttribPointer(index, count, GL_FLOAT, GL_FALSE, sizeof(vertex_t), (void*) offsetof(vertex_t, member)); \
+        glEnableVertexAttribArray(index);
+    VERTEX_LAYOUT(FILL_ATTRIB_POINTER)
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
+    return 0;
+}
+
+void generate_texture_and_upload() {
     // fill texture buffer based on char array
     for (int i = 0; i < (width * height); i++)
     {
@@ -214,7 +223,7 @@ int init_renderer(state_t* state) {
         if (!found_a_map) { printf("No mapping to a color found for character %c\n", bitmap[i]); }
     }
 
-    // upload texture
+    /* generate texture */
     GLuint tex_id;
     glGenTextures(1, &tex_id);
     glActiveTexture(GL_TEXTURE0);
@@ -224,24 +233,24 @@ int init_renderer(state_t* state) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
+    /* upload texture */
     glTexImage2D(GL_TEXTURE_2D, 0, tex_mode, width, height, 0, tex_mode, GL_UNSIGNED_BYTE, texture);
 
     /* enable blending for transparency */
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_SRC_ALPHA);
-
-    return 0;
 }
 
 EXPORT int on_reload(state_t* state) {
     printf("Hello from new DLL\n");
     state->shader_program = create_shader_program();
-    init_renderer(state);
+    generate_texture_and_upload();
     return 1;
 }
 
 EXPORT int on_load(state_t* state) {
     init_renderer(state);
     state->shader_program = create_shader_program();
+    generate_texture_and_upload();
     return 1;
 }
