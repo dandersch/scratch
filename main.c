@@ -65,8 +65,6 @@ int platform_load_code(dll_t* dll)
         if (!dll->func) { printf("Error finding function: %s\n", #func); return 0; }
     DLL_TABLE(LOAD_FUNCTION)
 
-    dll->on_reload(&state); // reload shader & "reinit" renderer
-
     return 1;
 }
 
@@ -112,6 +110,7 @@ int main(int argc, char* args[])
         {
             printf("Attempting code hot reload...\n");
             platform_load_code(&dll);
+            dll.on_reload(state);
             dll.last_mod = attr.st_mtime;
         }
 
