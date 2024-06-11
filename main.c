@@ -5,58 +5,72 @@
 /* HOT RELOAD */
 #include <sys/stat.h>         // for checking if dll changed on disk
 #include <SDL2/SDL_loadso.h>  // cross platform dll loading
-static void* dll_handle = NULL;
-static unsigned int dll_id;
-static time_t dll_last_mod;
+
 #define DLL_FILENAME "./code.dll"
-#define DLL_TABLE(X)                            \
-    X(void, hello)                              \
-    X(void, render, state_t*)                   \
-    X(void, create_shader_program, state_t*)    \
-    X(int,  init_renderer, state_t*)
-#define MAKE_STATIC(ret,func,...) static ret (*func)(__VA_ARGS__) = NULL;
-DLL_TABLE(MAKE_STATIC)
+#define DLL_TABLE(X)              \
+    X(void, render,    state_t*)  \
+    X(int,  on_load,   state_t*)  \
+    X(int,  on_reload, state_t*)
+
+typedef struct dll_t {
+    #define DLL_FUNCTIONS(ret,func,...) ret (*func)(__VA_ARGS__);
+    DLL_TABLE(DLL_FUNCTIONS)
+
+    void* handle;
+    unsigned int id;
+    time_t last_mod;
+    const char* file;
+} dll_t;
+static dll_t dll;
+
+//#define MAKE_STATIC(ret,func,...) static ret (*func)(__VA_ARGS__) = NULL;
+//DLL_TABLE(MAKE_STATIC)
 
 static state_t state; // NOTE all program state lives in data section for this example
 
-void copy_file(const char* src_filename, const char* dest_filename); /* cross-platform CopyFile() equivalent from win32 api */
-int platform_load_code()
-{
-    const char* dll_file = DLL_FILENAME ".tmp";
+#ifdef _WIN32
+  #include <windows.h>
+  #define DLL_FILE_TMP DLL_FILENAME ".tmp"
+  #define USE_TMP_DLL_IF_WIN32(sleeptime)   \
+     Sleep(sleeptime); CopyFile(DLL_FILENAME, DLL_FILE_TMP, 0)
+#else
+  #define USE_TMP_DLL_IF_WIN32(sleeptime)
+  #define DLL_FILE_TMP DLL_FILENAME // no tmp dll needed
+#endif
 
-    // unload old dll
-    if (dll_handle)
+void copy_file(const char* src_filename, const char* dest_filename); /* cross-platform CopyFile() equivalent from win32 api */
+int platform_load_code() // maybe pass a dll_t
+{
+    dll.file = DLL_FILE_TMP;
+
+    if (dll.handle) /* unload old dll */
     {
-        #define SET_TO_NULL(ret, func, ...) func = NULL;
+        #define SET_TO_NULL(ret, func, ...) dll.func = NULL;
         DLL_TABLE(SET_TO_NULL)
 
-        dll_id                = 0;
+        dll.id  = 0;
 
-        SDL_UnloadObject(dll_handle);
-        dll_handle = NULL;
+        SDL_UnloadObject(dll.handle);
+        dll.handle = NULL;
 
         /* NOTE: Linux could actually load the new dll directly without sleep */
-        SDL_Delay(500);
-        copy_file(DLL_FILENAME, DLL_FILENAME ".tmp");
+        USE_TMP_DLL_IF_WIN32(500);
     }
 
-    dll_handle = SDL_LoadObject(dll_file);
-    if (dll_handle == NULL) { printf("Opening DLL failed. Trying again...\n"); }
-    while (dll_handle == NULL) /* NOTE keep trying to load dll */
+    dll.handle = SDL_LoadObject(dll.file);
+    if (dll.handle == NULL) { printf("Opening DLL failed. Trying again...\n"); }
+    while (dll.handle == NULL) /* NOTE keep trying to load dll */
     {
-        dll_handle = SDL_LoadObject(dll_file);
+        dll.handle = SDL_LoadObject(dll.file);
     }
 
     /* load all dll functions (and print out any not found) */
     #define LOAD_FUNCTION(ret, func, ...) \
-        func = (ret (*)(__VA_ARGS__)) SDL_LoadFunction(dll_handle, #func); \
-        if (!func) { printf("Error finding function: %s\n", #func); return 0; }
+        dll.func = (ret (*)(__VA_ARGS__)) SDL_LoadFunction(dll.handle, #func); \
+        if (!dll.func) { printf("Error finding function: %s\n", #func); return 0; }
     DLL_TABLE(LOAD_FUNCTION)
 
-    hello(); // test calling dll function
-    // reload shader & "reinit" renderer
-    init_renderer(&state);
-    create_shader_program(&state);
+    dll.on_reload(&state); // reload shader & "reinit" renderer
 
     return 1;
 }
@@ -77,19 +91,20 @@ int main(int argc, char* args[])
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) { fprintf(stderr, "Failed to initialize GLEW\n"); return -1; }
 
-    copy_file(DLL_FILENAME, DLL_FILENAME ".tmp");
+    #ifdef _WIN32
+      CopyFile(DLL_FILENAME, DLL_FILE_TMP, 0);
+      Sleep(300);
+    #endif
 
     // initial loading of dll
     int code_loaded = platform_load_code();
     if (!code_loaded) { exit(-1); }
     struct stat attr;
     stat(DLL_FILENAME, &attr);
-    dll_id = attr.st_ino;
-    dll_last_mod = attr.st_mtime;
+    dll.id = attr.st_ino;
+    dll.last_mod = attr.st_mtime;
 
-    // call dll functions
-    init_renderer(&state);
-    create_shader_program(&state);
+    dll.on_load(&state);
 
     // Main loop
     int running = 1;
@@ -97,12 +112,12 @@ int main(int argc, char* args[])
     while (running)
     {
         /* check if dll has changed on disk */
-        if ((stat(DLL_FILENAME, &attr) == 0) && (dll_last_mod != attr.st_mtime))
+        if ((stat(DLL_FILENAME, &attr) == 0) && (dll.last_mod != attr.st_mtime))
         {
             printf("Attempting code hot reload...\n");
             platform_load_code();
-            dll_id       = attr.st_ino;
-            dll_last_mod = attr.st_mtime;
+            dll.id       = attr.st_ino;
+            dll.last_mod = attr.st_mtime;
         }
 
         // event handling
@@ -112,34 +127,10 @@ int main(int argc, char* args[])
             }
         }
 
-        render(&state);
+        dll.render(&state);
 
         SDL_GL_SwapWindow(state.window);
     }
 
     return 0;
-}
-
-void copy_file(const char* src_filename, const char* dest_filename) {
-    SDL_RWops* src = SDL_RWFromFile(src_filename, "rb");
-    if (!src) { fprintf(stderr, "Error opening dll to read: %s\n", SDL_GetError()); return; }
-
-    SDL_RWops* dest = SDL_RWFromFile(dest_filename, "wb");
-    if (!dest) { fprintf(stderr, "Error opening tmp dll to write: %s\n", SDL_GetError()); SDL_RWclose(src); return;}
-
-    /* buffered read/write */
-    #define BUFFER_SIZE 4096
-    char buffer[BUFFER_SIZE];
-    size_t bytes_read, bytes_written;
-    while ((bytes_read = SDL_RWread(src, buffer, 1, BUFFER_SIZE)) > 0) {
-        bytes_written = SDL_RWwrite(dest, buffer, 1, bytes_read);
-        if (bytes_written != bytes_read) {
-            fprintf(stderr, "Error writing to tmp dll: %s\n", SDL_GetError());
-            break;
-        }
-    }
-
-    /* cleanup */
-    SDL_RWclose(src);
-    SDL_RWclose(dest);
 }

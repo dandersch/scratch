@@ -133,7 +133,7 @@ GLuint compile_shader(GLenum type, const char* source)
     return shader; // NOTE unused
 }
 
-EXPORT GLuint create_shader_program(state_t* state)
+GLuint create_shader_program(state_t* state)
 {
     GLuint vertex_shader = compile_shader(GL_VERTEX_SHADER, vertex_shader_source);
     GLuint fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fragment_shader_source);
@@ -172,7 +172,7 @@ EXPORT GLuint create_shader_program(state_t* state)
         -(right + left) / (right - left), -(top + bottom) / (top - bottom), -(far + near) / (far - near), 1.0f
     };
 
-    // upload uniforms
+    /* upload uniforms */
     glUseProgram(state->shader_program); // NOTE: must be called before uploading uniform
     int orthoLocation = glGetUniformLocation(state->shader_program, "orthoProjection");
     if (orthoLocation == -1) { printf("Uniform not found\n"); }
@@ -194,11 +194,9 @@ EXPORT GLuint create_shader_program(state_t* state)
     return state->shader_program;
 }
 
-
-static float time = 0;
-EXPORT int render(state_t* state)
+static float time = 0; /* use for lack of a dt for now */
+EXPORT void render(state_t* state)
 {
-    // Render
     glClear(GL_COLOR_BUFFER_BIT);
     glClearColor(0.1f, 0.2f, 0.1f, 0.2f);
     glUseProgram(state->shader_program);
@@ -206,18 +204,11 @@ EXPORT int render(state_t* state)
     glBindVertexArray(state->VAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
-    return 0;
 }
 
-EXPORT int hello(state_t* state)
+int init_renderer(state_t* state)
 {
-    printf("Hello from DLL\n");
-    return 0;
-}
-
-EXPORT int init_renderer(state_t* state)
-{
-    // Generate and bind vertex array object and vertex buffer object
+    /* generate and bind vertex array object and vertex buffer object */
     glGenVertexArrays(1, &state->VAO);
     glGenBuffers(1, &state->VBO);
 
@@ -266,29 +257,29 @@ EXPORT int init_renderer(state_t* state)
     glBindTexture(GL_TEXTURE_2D, tex_id);
 
     // how to sample the texture when its larger or smaller
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    // mipmapping stuff, all turned off
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, GL_LINEAR);
-
-    // wrap/clamp uv coords
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP);
-
     glTexImage2D(GL_TEXTURE_2D, 0, tex_mode, width, height, 0, tex_mode, GL_UNSIGNED_BYTE, texture);
 
-    // enable blending for transparency
+    /* enable blending for transparency */
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_SRC_ALPHA);
 
     return 0;
+}
+
+EXPORT int on_reload(state_t* state)
+{
+    printf("Hello from new DLL\n");
+    create_shader_program(state);
+    init_renderer(state);
+    return 1;
+}
+
+EXPORT int on_load(state_t* state)
+{
+    init_renderer(state);
+    create_shader_program(state);
+    return 1;
 }
