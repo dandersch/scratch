@@ -1,5 +1,13 @@
 #include "common.h"
 
+
+void GLAPIENTRY gl_debug_callback(GLenum source, GLenum type, GLuint id,
+                                  GLenum severity, GLsizei length,
+                                  const GLchar* message, const void* userParam)
+{
+    fprintf(stderr, "%s\n", message);
+}
+
 #define SHADER_STRINGIFY(x) "#version 330\n" #x
 #define VERT_SHADER
 const char* vertex_shader_source =
@@ -225,6 +233,9 @@ EXPORT void render(state_t* state) {
 }
 
 int init_renderer(state_t* state) {
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    glDebugMessageCallback(gl_debug_callback, NULL);
+
     /* generate and bind vertex array object and vertex buffer object */
     glGenVertexArrays(1, &state->VAO);
     glGenBuffers(1, &state->VBO);

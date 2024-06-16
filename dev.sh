@@ -14,7 +14,7 @@ watched_files="hot_reload.c|shader.glsl"
 
 ./build.sh
 
-./main &
+MESA_GLSL_VERSION_OVERRIDE=430 MESA_GL_VERSION_OVERRIDE=4.3FC ./main &
 bg_pid=$! # capture pid of program
 
 # rebuild dll if source file changed
