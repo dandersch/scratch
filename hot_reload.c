@@ -80,14 +80,16 @@ const char bitmap[]  = {
 const int tex_mode = GL_RGBA;
 unsigned char texture[64][4];
 
+#define vertex_t(LAYOUT) \
+    LAYOUT(     0,     3, GL_FLOAT, float, vert_x, float vert_y; float vert_z; ) \
+    LAYOUT(     1,     2, GL_FLOAT, float, tex_x,  float tex_y;                )
+          /*index, count, ogl_type,  type, member, va_args                    */
+
+#define FILL_MEMBERS(layout, count, ogl_type, type, member, ...) type member; __VA_ARGS__
 typedef struct vertex_t
 {
-    float vert_x, vert_y, vert_z;
-    float tex_x,  tex_y;
+    vertex_t(FILL_MEMBERS)
 } vertex_t;
-#define VERTEX_LAYOUT(X) \
-   X(0, 3, vert_x)       \
-   X(1, 2, tex_x)
 
 const float x = 100.0f;
 const float y = 100.0f; // position for rendered quad on screen
@@ -250,10 +252,10 @@ int init_renderer(state_t* state) {
     glBindBuffer(GL_ARRAY_BUFFER, state->VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    #define FILL_ATTRIB_POINTER(index, count, member) \
-        glVertexAttribPointer(index, count, GL_FLOAT, GL_FALSE, sizeof(vertex_t), (void*) offsetof(vertex_t, member)); \
+    #define FILL_ATTRIB_POINTER(index, count, ogl_type, type, member, ...) \
+        glVertexAttribPointer(index, count, ogl_type, GL_FALSE, sizeof(vertex_t), (void*) offsetof(vertex_t, member)); \
         glEnableVertexAttribArray(index);
-    VERTEX_LAYOUT(FILL_ATTRIB_POINTER)
+    vertex_t(FILL_ATTRIB_POINTER)
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
