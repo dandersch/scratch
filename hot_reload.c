@@ -1,5 +1,5 @@
 #include "common.h"
-
+#include "pch.h"
 
 void GLAPIENTRY gl_debug_callback(GLenum source, GLenum type, GLuint id,
                                   GLenum severity, GLsizei length,
@@ -233,6 +233,10 @@ EXPORT void render(state_t* state) {
 }
 
 int init_renderer(state_t* state) {
+    // Initialize GLEW
+    glewExperimental = GL_TRUE;
+    if (glewInit() != GLEW_OK) { fprintf(stderr, "Failed to initialize GLEW\n"); return -1; }
+
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glDebugMessageCallback(gl_debug_callback, NULL);
 
@@ -302,6 +306,13 @@ void generate_texture_and_upload() {
 }
 
 EXPORT int on_reload(state_t* state) {
+    // check OpenGL error
+    GLenum err;
+    while ((err = glGetError()) != GL_NO_ERROR) {
+        printf("OpenGL Error:%s\n", glewGetErrorString(err));
+    }
+
+    init_renderer(state); // NOTE: should everything in this function be called on reload?
 
     #define CREATE_SHADER(idx,vert_src,frag_src) state->shaders[idx] = create_shader_program(vert_src, frag_src);
     SHADERS(CREATE_SHADER)
@@ -313,7 +324,6 @@ EXPORT int on_reload(state_t* state) {
 EXPORT int on_load(state_t** state) {
     (*state) = malloc(sizeof(state_t));
 
-    init_renderer(*state);
     on_reload(*state);
 
     (*state)->current_shader = 0;

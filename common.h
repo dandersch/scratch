@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <GL/glew.h>
 
 #define SCREEN_WIDTH  300
 #define SCREEN_HEIGHT 300

@@ -28,6 +28,7 @@ SHADER_STRINGIFY(
     in vec2 o_tex_coords;
     in float o_time;
     uniform sampler2D tex;
+
     void main()
     {
         FragColor   = texture(tex, o_tex_coords);

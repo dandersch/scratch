@@ -1,14 +1,10 @@
 #include "common.h"
-
-#include <SDL2/SDL.h>
+#include "pch.h"
 
 /* forward declarations */
 typedef struct state_t state_t;
 
 /* HOT RELOAD */
-#include <sys/stat.h>         // for checking if dll changed on disk
-#include <SDL2/SDL_loadso.h>  // cross platform dll loading
-
 #define DLL_FILENAME "./code.dll"
 #define DLL_TABLE(X)               \
     X(int,  on_load,   state_t**)  \
@@ -88,9 +84,6 @@ int main(int argc, char* args[])
         context = SDL_GL_CreateContext(window); // opengl context
         if (!context) { fprintf(stderr, "Failed to create OpenGL context: %s\n", SDL_GetError()); return -1; }
 
-        // Initialize GLEW
-        glewExperimental = GL_TRUE;
-        if (glewInit() != GLEW_OK) { fprintf(stderr, "Failed to initialize GLEW\n"); return -1; }
     }
 
     #ifdef _WIN32

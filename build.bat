@@ -1,11 +1,15 @@
 echo >/dev/null # >nul & GOTO WINDOWS & rem ^
 echo 'Processing for Linux'
 
+#clang -c -fPIC -x c-header pch.h -o pch.pch # build pch
+
 # build dll
-clang --shared -fPIC hot_reload.c -o ./code.dll -lGL -lGLEW
+clang --shared -include-pch "pch.pch" -fPIC hot_reload.c -o ./code.dll -lGL -lGLEW
 
 # build exe
-clang -I ./ -g $(sdl2-config --cflags) -fPIC -I/usr/include/GL -L$(pwd) -lSDL2 -lGL -lGLEW -ldl main.c -o main
+clang -I ./ -g $(sdl2-config --cflags) -include-pch "pch.pch" -fPIC -I/usr/include/GL -L$(pwd) -lSDL2 main.c -o main
+
+
 
 exit 0
 :WINDOWS
