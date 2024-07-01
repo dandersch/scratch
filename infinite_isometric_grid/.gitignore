@@ -1,0 +1,6 @@
+.cache/
+compile_commands.json
+isometric
+gf2
+*.exe
+*.obj

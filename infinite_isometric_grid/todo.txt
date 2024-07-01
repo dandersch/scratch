@@ -1,0 +1,21 @@
+TODO -*- mode: org -*-
+
+1. [X] find out best way to draw a line
+2. [X] draw vertical lines on the screen, adressable from left to right with 0..n
+3. [X] draw horizontal lines, adressable from up to down with 0..m
+4. [X] adjustable spacing between the line (share the spacing with vert. lines)
+5. [X] Now that we have a grid: make boxes inside addressable by n,m
+6. [X] color the box where the mouse is
+7. [X] find out how to draw lines diagonally
+8. [X] add shearing
+9. [ ] use SDL_GetError()...
+10. [X] adjustable spacing between the lines
+11. [ ] add some anti-aliasing
+12. [X] movable camera
+13. [X] "infinite" lines
+14. [X] bring selection back w/ infinite lines
+15. [X] Add interpolation
+16. [ ] *perspective projection*
+17. [X] draw a block between the lines where the mouse is (+needs rewrite in ogl+)
+18. [X] textured polygons
+19. [ ] sparse tilemap that stores a tile for given coordinates
