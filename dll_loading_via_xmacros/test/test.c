@@ -1,6 +1,8 @@
 #include <stdio.h>
 
-/* USAGE CODE: define x-macros before including dll_table.h */
+#include "../dll_table.h"
+
+/* USAGE CODE: define x-macros before/after including dll_table.h */
 #define RECODE_DLL_TABLE(DLL) \
     DLL(cute,    "./cute.dll",    CUTE_FUNCTION_TABLE)    \
     DLL(tex,     "./tex.dll",     TEXER_FUNCTION_TABLE)   \
@@ -18,13 +20,17 @@
     FUNC(DLL, void, update, state_t*, char, double, double) \
     FUNC(DLL, void, draw,   state_t*)
 
-
 /* TODO forward declarations */
 typedef struct Routine Routine;
 typedef struct state_t state_t;
 
-#define DLL_TABLE_IMPLEMENTATION
-#include "../dll_table.h"
+DLL_FUNC_PTRS
+DLL_HANDLES
+DLL_FUNCTION_DECL
+DLL_LOAD_FUNCTIONS
+DLL_CHANGED_FUNCTION
+DLL_CLOSE_FUNCTION
+DLL_OPEN_FUNCTION
 
 #include <unistd.h>
 int main() {
@@ -37,7 +43,7 @@ int main() {
     if (alloc_texture) { printf("found\n"); }
     else          { printf("not found\n"); }
 
-    cute_dll_open();
+    if (cute_dll_open()) { printf("success\n"); }
     cute_dll_load_functions();
 
     if (dialogue) { printf("found\n"); }
