@@ -2,7 +2,7 @@
 ** IDEA:
 ** Control the opengl state-machine by putting as many calls as possible into push/pop scopes.
 ** Using these scopes consistently should make state leaks impossible and makes the entire current
-** for a draw call obvious, since all the state is set/unset right before the call:
+** state for a draw call obvious, since all the state can be set/unset right before the call:
 **
 **   scope_gl_use_program(toonshader)
 **    scope_gl_bind_texture2d(spritesheet)
@@ -14,9 +14,20 @@
 **       glDrawArrays(GL_TRIANGLES, 0, 6);
 **   }
 **
+**  
+** More possible push/pop functions include...
+**    glEnableVertexAttribArray/glDisableVertexAttribArray
+**    glBindFramebuffer
+**    glActiveTexture() : glGetIntegerv(GL_ACTIVE_TEXTURE, &activeTextureUnit);
+**
+**
 ** Possible improvements:
 ** - There should be an easy way to turn off restoring of states (since that requires expensively querying via glGetInteger, etc.).
 **   Instead, unset the state without restoring the old state (i.e. glUseProgram(0) instead of glUseProgram(old)).
+** - Rename all macros from scope_gl_use_program to scope_glUseProgram to mirror the underlying API call. The macro arguments should
+**   also be identical to the passed parameters, so that we can convert any scope_... to a simple call to the OpenGL API by removing
+**   'scope_' and appending ';'.
+** - We could add calls to glError() at the end of every scope
 */
 
 /* helper macros */
@@ -63,7 +74,7 @@
          (UQ(i) == 0); (UQ(i) += 1, glClearColor(UQ(clear)[0], UQ(clear)[1], UQ(clear)[2], UQ(clear)[3])))
 
 #define scope_gl_blend_func(src,dst) \
-    for (GLint UQ(s), UQ(d), UQ(i) = (glGetIntegerv(GL_BLEND_SRC, &UQ(s)), glGetIntegerv(GL_BLEND_DST, &UQ(s)), glBlendFunc(src, dst), 0); \
+    for (GLint UQ(s), UQ(d), UQ(i) = (glGetIntegerv(GL_BLEND_SRC, &UQ(s)), glGetIntegerv(GL_BLEND_DST, &UQ(d)), glBlendFunc(src, dst), 0); \
          (UQ(i) == 0); (UQ(i) += 1, glBlendFunc(UQ(s), UQ(d))))
 
 #define scope_gl_blend_eq(eq) \
@@ -83,19 +94,23 @@
     for (typeof(val) UQ(t2d), UQ(i) = (glGetTexParameter##ext(GL_TEXTURE_2D, param, &UQ(t2d)), glTexParameter##ext(GL_TEXTURE_2D, param, val), 0); \
          (UQ(i) == 0); (UQ(i) += 1, glTexParameter##ext(GL_TEXTURE_2D, param, UQ(t2d))))
 
-/* not scope opening */
-// ext = {1fv,2fv,3fv,4fv,1iv,2iv,3iv,4iv,Matrix4fv,...}
+/* for pushing and popping uniform values */
+/* NOTE: these are extremely wasteful */
+#define scope_uniform_matrix(matrix,name) \
+    for (GLint UQ(prog), UQ(j) = (glGetIntegerv(GL_CURRENT_PROGRAM, &UQ(prog)),0); (UQ(j) == 0); UQ(j) += 1) \
+    for (GLfloat UQ(mat)[16], UQ(i) = (glGetUniformfv(UQ(prog), glGetUniformLocation(UQ(prog), name), UQ(mat)), glUniformMatrix4fv(glGetUniformLocation(UQ(prog), name), 1, GL_FALSE, matrix), 0); \
+         (UQ(i) == 0); (UQ(i) += 1, glUniformMatrix4fv(glGetUniformLocation(UQ(prog), name), 1, GL_FALSE, UQ(mat))))
+#define scope_uniform_float(val,name) \
+    for (GLint UQ(prog), UQ(j) = (glGetIntegerv(GL_CURRENT_PROGRAM, &UQ(prog)),0); (UQ(j) == 0); UQ(j) += 1) \
+    for (GLfloat UQ(old_val), UQ(i) = (glGetUniformfv(UQ(prog), glGetUniformLocation(UQ(prog), name), &UQ(old_val)), glUniform1f(glGetUniformLocation(UQ(prog), name), val), 0); \
+         (UQ(i) == 0); (UQ(i) += 1, glUniform1f(glGetUniformLocation(UQ(prog), name), UQ(old_val))))
+
+/*                            */
+/* other (not opening scopes) */
+/*                            */
+// ext = {1f,2f,3f,4f,1i,2i,3i,4i,1fv,2fv,3fv,4fv,1iv,2iv,3iv,4iv,Matrix4fv,...}
 // NOTE: no error handling or logging
 #define gl_upload_uniform(ext,prog,name,...) \
     scope_gl_use_program(prog) { \
         glUniform##ext(glGetUniformLocation(prog,name), __VA_ARGS__); \
     }
-
-/*
-  More possible push/pop functions include
-     glEnableVertexAttribArray/glDisableVertexAttribArray
-     glBindFramebuffer
-     glActiveTexture() : glGetIntegerv(GL_ACTIVE_TEXTURE, &activeTextureUnit);
-
-     one could also add calls to glError() at the end of every scope
-*/

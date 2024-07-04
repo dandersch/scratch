@@ -136,7 +136,10 @@ GLuint compile_shader(GLenum type, const char* source) {
     return shader;
 }
 
-GLuint upload_uniforms(GLuint shader, float cam_pos_x, float cam_pos_y, float zoom) {
+static float orthoProjection[16];
+static float view_matrix[16];
+static float time = 0; /* used for lack of a dt for now */
+GLuint update_uniforms(GLuint shader, float cam_pos_x, float cam_pos_y, float zoom) {
     GLuint success = 1;
 
     /* orthographic projection */
@@ -153,29 +156,23 @@ GLuint upload_uniforms(GLuint shader, float cam_pos_x, float cam_pos_y, float zo
     bottom *= zoom;
     top *= zoom;
 
-    float orthoProjection[16] = {
+    float new_projection[16] = {
         2.0f / (right - left),                                        0.0f,                         0.0f, 0.0f,
         0.0f,                                        2.0f / (top - bottom),                         0.0f, 0.0f,
         0.0f,                                                         0.0f,         -2.0f / (far - near), 0.0f,
         -(right + left) / (right - left), -(top + bottom) / (top - bottom), -(far + near) / (far - near), 1.0f
     };
+    memcpy(orthoProjection, new_projection, sizeof(float) * 16); // because we can't do orthoProjection = new_projection...
 
-    /* upload uniforms */
-    gl_upload_uniform(Matrix4fv, shader, "orthoProjection", 1, GL_FALSE, orthoProjection);
-    //  glUniformMatrix4fv(orthoLocation, 1, GL_FALSE, orthoProjection);
-
-    float view_matrix[16] = {
+    float new_view_matrix[16] = {
         1.0f,  0.0f, 0.0f, 0.0f,
         0.0f,  1.0f, 0.0f, 0.0f,
         0.0f,  0.0f, 1.0f, 0.0f,
       -cam_pos_x,-cam_pos_y, 0.0f, 1.0f,
     };
-    gl_upload_uniform(Matrix4fv, shader, "view_matrix", 1, GL_FALSE, view_matrix);
+    memcpy(view_matrix, new_view_matrix, sizeof(float) * 16);
 
-
-    static float time = 0; /* use for lack of a dt for now */
     time++;
-    gl_upload_uniform(1f, shader, "time", time);
 
     return success;
 }
@@ -208,9 +205,7 @@ GLuint create_shader_program(const char* vertex_src, const char* frag_src) {
 }
 
 EXPORT void render(state_t* state) {
-        /* enable blending for transparency */
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_ONE, GL_SRC_ALPHA);
+    update_uniforms(state->shaders[state->current_shader], state->cam_x, state->cam_y, state->zoom);
 
     scope_gl_use_program(state->shaders[state->current_shader])
      scope_gl_bind_vertex_array(state->VAO)
@@ -222,9 +217,13 @@ EXPORT void render(state_t* state) {
     {
         glClear(GL_COLOR_BUFFER_BIT);
 
-        upload_uniforms(state->shaders[state->current_shader], state->cam_x, state->cam_y, state->zoom);
-
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        /* upload uniforms */
+        scope_uniform_matrix(orthoProjection, "orthoProjection")
+         scope_uniform_matrix(view_matrix, "view_matrix")
+          scope_uniform_float(time, "time")
+        {
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+        }
     }
 }
 
