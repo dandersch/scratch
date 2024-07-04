@@ -139,7 +139,7 @@ GLuint compile_shader(GLenum type, const char* source) {
 static float orthoProjection[16];
 static float view_matrix[16];
 static float time = 0; /* used for lack of a dt for now */
-GLuint update_uniforms(GLuint shader, float cam_pos_x, float cam_pos_y, float zoom) {
+GLuint update_state(float cam_pos_x, float cam_pos_y, float zoom) {
     GLuint success = 1;
 
     /* orthographic projection */
@@ -205,22 +205,22 @@ GLuint create_shader_program(const char* vertex_src, const char* frag_src) {
 }
 
 EXPORT void render(state_t* state) {
-    update_uniforms(state->shaders[state->current_shader], state->cam_x, state->cam_y, state->zoom);
-
-    scope_gl_use_program(state->shaders[state->current_shader])
-     scope_gl_bind_vertex_array(state->VAO)
-      scope_gl_bind_texture2d(state->tex_id)
-       scope_gl_enable(GL_BLEND)
-        scope_gl_blend_func(GL_ONE, GL_SRC_ALPHA)
-         scope_gl_viewport(0,0, SCREEN_WIDTH, SCREEN_HEIGHT)  // NOTE hardcoded
-          scope_gl_clearcolor(0.1f, 0.2f, 0.1f, 0.2f)
+    scope_glUseProgram(state->shaders[state->current_shader])
+     scope_glBindVertexArray(state->VAO)
+      scope_glBindTexture2D(state->tex_id)
+       scope_glTex2DParameter(i,GL_TEXTURE_MIN_FILTER,GL_NEAREST)
+        scope_glTex2DParameter(i,GL_TEXTURE_MAG_FILTER,GL_NEAREST)
+         scope_glEnable(GL_BLEND)
+          scope_glBlendFunc(GL_ONE, GL_SRC_ALPHA)
+           scope_glViewport(0,0, SCREEN_WIDTH, SCREEN_HEIGHT)  // NOTE hardcoded
+            scope_glClearColor(0.1f, 0.2f, 0.1f, 0.2f)
     {
         glClear(GL_COLOR_BUFFER_BIT);
 
         /* upload uniforms */
-        scope_uniform_matrix(orthoProjection, "orthoProjection")
-         scope_uniform_matrix(view_matrix, "view_matrix")
-          scope_uniform_float(time, "time")
+        scope_glUniformMatrix4fv(orthoProjection, "orthoProjection")
+         scope_glUniformMatrix4fv(view_matrix, "view_matrix")
+          scope_glUniformfv(time, "time")
         {
             glDrawArrays(GL_TRIANGLES, 0, 6);
         }
@@ -239,8 +239,8 @@ int init_renderer(state_t* state) {
     glGenVertexArrays(1, &state->VAO);
     glGenBuffers(1, &state->VBO);
 
-    scope_gl_bind_vertex_array(state->VAO)
-      scope_gl_bind_array_buffer(state->VBO)
+    scope_glBindVertexArray(state->VAO)
+      scope_glBindArrayBuffer(state->VBO)
     {
         /* upload vertices */
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
@@ -282,11 +282,7 @@ void generate_texture_and_upload(state_t* state) {
     /* generate texture */
     glGenTextures(1, &state->tex_id);
     glActiveTexture(GL_TEXTURE0);
-    scope_gl_bind_texture2d(state->tex_id) {
-        // how to sample the texture when its larger or smaller
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
+    scope_glBindTexture2D(state->tex_id) {
         /* upload texture */
         glTexImage2D(GL_TEXTURE_2D, 0, tex_mode, width, height, 0, tex_mode, GL_UNSIGNED_BYTE, texture);
     }
@@ -323,6 +319,8 @@ EXPORT void update(state_t* state, float pos_x, float pos_y, int mouse_wheel) {
     state->cam_y = pos_y;
     state->mouse_wheel = mouse_wheel;
     state->zoom -= (mouse_wheel * 0.1);
+
+    update_state(state->cam_x, state->cam_y, state->zoom);
 }
 
 EXPORT void mouse_click(state_t* state, int x, int y) {
