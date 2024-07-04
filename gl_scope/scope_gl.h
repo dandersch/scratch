@@ -16,12 +16,10 @@
 **       glDrawArrays(GL_TRIANGLES, 0, 6);
 **   }
 **
-**  
-** More possible push/pop functions include...
+** More push/pop functions to add:
 **    glEnableVertexAttribArray/glDisableVertexAttribArray
-**    glBindFramebuffer
+**    glBindRenderbuffer + related functions
 **    glActiveTexture() : glGetIntegerv(GL_ACTIVE_TEXTURE, &activeTextureUnit);
-**
 **
 ** Possible improvements:
 ** - There should be an easy way to turn off restoring of states (since that requires expensively querying via glGetInteger, etc.).
@@ -45,7 +43,9 @@
 /* NOTE: these do not restore the previous state */
 /*                                               */
 #define scope_gl_bind_array_buffer(vbo) \
-    scope_begin_end_var(glBindBuffer(GL_ARRAY_BUFFER, vbo), glBindBuffer(GL_ARRAY_BUFFER, 0), arrbuf)
+    for (GLint UQ(old_vbo), UQ(i) = (glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &UQ(old_vbo)), glBindBuffer(GL_ARRAY_BUFFER, vbo), 0); \
+         (UQ(i) == 0); (UQ(i) += 1, glBindBuffer(GL_ARRAY_BUFFER, UQ(old_vbo))))
+    //scope_begin_end_var(glBindBuffer(GL_ARRAY_BUFFER, vbo), glBindBuffer(GL_ARRAY_BUFFER, 0), arrbuf)  // version that does not restore state
 
 #define scope_gl_bind_ssbo(ssbo, binding) \
     scope_begin_end_var((glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo), glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo)), (glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0), glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)), ssbo)
@@ -70,9 +70,32 @@
          (UQ(i) == 0); (UQ(i) += 1, (UQ(old_flag) ? glEnable(enumval) : glDisable(enumval))))
     //scope_begin_end_var(glEnable(enumval), glDisable(enumval), glenable) // version that does not restore state
 
+/* TODO: untested */
+#define scope_glBindFramebuffer(fbo) \
+    for (GLint UQ(old_fbo), UQ(i) = (glGetIntegerv(GL_FRAMEBUFFER_BINDING, &UQ(old_fbo)), glBindFramebuffer(GL_FRAMEBUFFER, fbo), 0); \
+         (UQ(i) == 0); (UQ(i) += 1, glBindFramebuffer(GL_FRAMEBUFFER, UQ(old_fbo))))
+    //scope_begin_end_var(glBindFramebuffer(GL_FRAMEBUFFER, fbo), glBindFramebuffer(GL_FRAMEBUFFER, 0), old_fbo) // version that does not restore state
+
+/* TODO: untested */
+/* NOTE: does not restore previously attached texture, could maybe be achieved with glGetFramebufferAttachmentParameter
+ * see https://registry.khronos.org/OpenGL-Refpages/gl4/html/glGetFramebufferAttachmentParameter.xhtml */
+// attachment = {GL_COLOR_ATTACHMENT0,GL_DEPTH_ATTACHMENT,GL_STENCIL_ATTACHMENT}
+#define scope_glFramebufferTexture2D(fbo,attachment,tex) \
+    scope_begin_end_var(glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, tex, 0), \
+                        glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D,   0, 0), fbotex)
+
+/* TODO: untested */
+/* NOTE: does not restore previously attached texture, could maybe be achieved with glGetFramebufferAttachmentParameter
+ * see https://registry.khronos.org/OpenGL-Refpages/gl4/html/glGetFramebufferAttachmentParameter.xhtml */
+// attachment = {GL_COLOR_ATTACHMENT0,GL_DEPTH_ATTACHMENT,GL_STENCIL_ATTACHMENT}
+#define scope_glFramebufferRenderbuffer(fbo,attachment,renderbuffer) \
+    scope_begin_end_var(glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, renderbuffer), \
+                        glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, 0), fborenbuf)
+
 #define scope_gl_viewport(x,y,w,h) \
     for (GLint UQ(view)[4], UQ(i) = (glGetIntegerv(GL_VIEWPORT, UQ(view)), glViewport(x, y, w, h), 0); \
          (UQ(i) == 0); (UQ(i) += 1, glViewport(UQ(view)[0], UQ(view)[1], UQ(view)[2], UQ(view)[3])))
+
 #define scope_gl_clearcolor(r,g,b,a) \
     for (GLfloat UQ(clear)[4], UQ(i) = (glGetFloatv(GL_COLOR_CLEAR_VALUE, UQ(clear)), glClearColor(r,g,b,a), 0); \
          (UQ(i) == 0); (UQ(i) += 1, glClearColor(UQ(clear)[0], UQ(clear)[1], UQ(clear)[2], UQ(clear)[3])))
