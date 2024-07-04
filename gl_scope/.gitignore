@@ -1,9 +1,0 @@
-code.dll
-code.tmp.dll
-code.dll.tmp
-main
-main.exe
-*.rdi
-*.ilk
-*.pdb
-*.obj
