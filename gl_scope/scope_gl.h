@@ -1,4 +1,6 @@
 /*
+** scope_gl.h : Scoped Push/Pop macros of common OpenGL calls to avoid state leaks
+**
 ** IDEA:
 ** Control the opengl state-machine by putting as many calls as possible into push/pop scopes.
 ** Using these scopes consistently should make state leaks impossible and makes the entire current
@@ -28,6 +30,7 @@
 **   also be identical to the passed parameters, so that we can convert any scope_... to a simple call to the OpenGL API by removing
 **   'scope_' and appending ';'.
 ** - We could add calls to glError() at the end of every scope
+** - Avoid warning about shadowing variables when putting scope macros on the same line
 */
 
 /* helper macros */
@@ -44,7 +47,6 @@
 #define scope_gl_bind_array_buffer(vbo) \
     scope_begin_end_var(glBindBuffer(GL_ARRAY_BUFFER, vbo), glBindBuffer(GL_ARRAY_BUFFER, 0), arrbuf)
 
-/* TODO probably doesn't compile because of the comma (?) */
 #define scope_gl_bind_ssbo(ssbo, binding) \
     scope_begin_end_var((glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo), glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo)), (glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0), glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)), ssbo)
 
@@ -54,10 +56,6 @@
 #define scope_gl_bind_texture2d(tex_id) \
     scope_begin_end_var(glBindTexture(GL_TEXTURE_2D, tex_id), glBindTexture(GL_TEXTURE_2D, 0), texbind)
 
-/* GL_DEPTH_TEST, GL_BLEND, ... */
-#define scope_gl_enable(enumval) \
-    scope_begin_end_var(glEnable(enumval), glDisable(enumval), glenable)
-
 /*                                                                          */
 /* NOTE: these do restore previous state (by querying, which could be slow) */
 /*                                                                          */
@@ -65,6 +63,12 @@
     for (GLint UQ(prog), UQ(i) = (glGetIntegerv(GL_CURRENT_PROGRAM, &UQ(prog)), glUseProgram(id), 0); \
          (UQ(i) == 0); (UQ(i) += 1, glUseProgram(UQ(prog))))
     //scope_begin_end_var(glUseProgram(id), glUseProgram(0), prog) // version that does not restore state
+
+/* GL_DEPTH_TEST, GL_BLEND, ... */
+#define scope_gl_enable(enumval) \
+    for (GLint UQ(old_flag), UQ(i) = (glGetBooleanv(enumval, (GLboolean*) &UQ(old_flag)), glEnable(enumval), 0); \
+         (UQ(i) == 0); (UQ(i) += 1, (UQ(old_flag) ? glEnable(enumval) : glDisable(enumval))))
+    //scope_begin_end_var(glEnable(enumval), glDisable(enumval), glenable) // version that does not restore state
 
 #define scope_gl_viewport(x,y,w,h) \
     for (GLint UQ(view)[4], UQ(i) = (glGetIntegerv(GL_VIEWPORT, UQ(view)), glViewport(x, y, w, h), 0); \
